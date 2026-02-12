@@ -1,5 +1,3 @@
-Paste this into your README. It’s written to look professional for your team, your professor, and future portfolio use.
-
 ---
 
 # Health SMS – HIPAA-Oriented Cloud Messaging Platform
