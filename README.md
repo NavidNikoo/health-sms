@@ -1,5 +1,3 @@
----
-
 # Health SMS – HIPAA-Oriented Cloud Messaging Platform
 
 Cloud Computing & Security Project
