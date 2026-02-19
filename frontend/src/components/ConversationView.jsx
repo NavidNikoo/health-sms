@@ -89,7 +89,7 @@ export function ConversationView({ token, conversationId, conversation }) {
             <div className="conv-view-phone">
               {conversation.patientName || formatPhone(conversation.patientPhone) || "Unknown"}
             </div>
-            <div className="conv-view-sub">{formatPhone(conversation.inboxNumber)}</div>
+            <div className="conv-view-sub">{formatPhone(conversation.patientPhone)}</div>
           </div>
         </div>
         <div className="conv-view-header-actions">

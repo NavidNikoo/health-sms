@@ -122,7 +122,7 @@ router.post("/:id/messages", authenticate, async (req, res) => {
 
     if (providerSid && process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN) {
       try {
-        const { sid } = await sendSms(providerSid, toNumber, bodyTrimmed);
+        const { sid } = await sendSms(fromNumber, toNumber, bodyTrimmed);
         vendorMessageId = sid;
       } catch (twilioErr) {
         console.error("Twilio send failed:", twilioErr);

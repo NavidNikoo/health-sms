@@ -26,5 +26,25 @@ router.get("/", authenticate, async (req, res) => {
   }
 });
 
+// POST /api/patients - create a new patient
+router.post("/", authenticate, async (req, res) => {
+  try {
+    const { fullName, primaryPhone, notes } = req.body;
+    if (!fullName || !primaryPhone) {
+      return res.status(400).json({ message: "fullName and primaryPhone are required" });
+    }
+
+    const result = await db.query(
+      "INSERT INTO patients (org_id, full_name, primary_phone, notes) VALUES ($1, $2, $3, $4) RETURNING id, full_name, primary_phone, notes, created_at",
+      [req.user.orgId, fullName.trim(), primaryPhone.trim(), notes?.trim() || null]
+    );
+
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    console.error("Error creating patient", err);
+    res.status(500).json({ message: "Error creating patient" });
+  }
+});
+
 module.exports = router;
 

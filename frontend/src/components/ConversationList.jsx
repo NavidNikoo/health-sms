@@ -54,7 +54,7 @@ export function ConversationList({ conversations = [], selectedConversationId, o
               {(conv.lastMessage || "").slice(0, 40)}
               {(conv.lastMessage || "").length > 40 ? "…" : ""}
             </span>
-            <span className="conv-inbox">{formatPhone(conv.inboxNumber)}</span>
+            <span className="conv-inbox">{formatPhone(conv.patientPhone)}</span>
           </div>
         </button>
       ))}

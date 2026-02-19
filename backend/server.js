@@ -13,6 +13,7 @@ app.use(
   })
 );
 app.use(express.json());
+app.use(express.urlencoded({ extended: false }));
 
 // Simple health check
 app.get("/api/health", (req, res) => {
@@ -29,6 +30,9 @@ app.use("/api/auth", authRouter);
 app.use("/api/patients", patientsRouter);
 app.use("/api/conversations", conversationsRouter);
 app.use("/api/phone-numbers", phoneNumbersRouter);
+
+const webhooksRouter = require("./routes/webhooks");
+app.use("/api/webhooks", webhooksRouter);
 
 // Start server
 app.listen(PORT, () => {

@@ -16,12 +16,13 @@ VALUES (
   'provider'
 ) ON CONFLICT (org_id, email) DO NOTHING;
 
-INSERT INTO phone_numbers (id, org_id, e164_number, label)
+INSERT INTO phone_numbers (id, org_id, e164_number, label, provider_sid)
 VALUES (
   '33333333-3333-3333-3333-333333333333',
   '11111111-1111-1111-1111-111111111111',
-  '+15551234567',
-  'Main Line'
+  '+18312732950',
+  'Main Line',
+  'PNcc45fb6f16226efe578080b42a5c160b'
 ) ON CONFLICT (org_id, e164_number) DO NOTHING;
 
 INSERT INTO patients (id, org_id, full_name, primary_phone, notes)
@@ -44,8 +45,8 @@ VALUES (
 -- Messages: body_encrypted stores base64 placeholder for demo (real app would use proper encryption)
 INSERT INTO messages (id, conversation_id, direction, from_number, to_number, body_encrypted, status, sent_at, created_at)
 VALUES
-  ('66666666-6666-6666-6666-666666666661', '55555555-5555-5555-5555-555555555551', 'outbound', '+15551234567', '+15559876543', 'aGVsbG8gSmFuZSwgeW91ciBhcHBvaW50bWVudCBpcyB0b21vcnJvdyBhdCA5YW0=', 'delivered', now() - interval '2 hours', now() - interval '2 hours'),
-  ('66666666-6666-6666-6666-666666666662', '55555555-5555-5555-5555-555555555551', 'inbound', '+15559876543', '+15551234567', 'VGhhbmsgeW91ISBJbCBiZSB0aGVyZS4=', 'delivered', now() - interval '1 hour', now() - interval '1 hour')
+  ('66666666-6666-6666-6666-666666666661', '55555555-5555-5555-5555-555555555551', 'outbound', '+18312732950', '+15559876543', 'aGVsbG8gSmFuZSwgeW91ciBhcHBvaW50bWVudCBpcyB0b21vcnJvdyBhdCA5YW0=', 'delivered', now() - interval '2 hours', now() - interval '2 hours'),
+  ('66666666-6666-6666-6666-666666666662', '55555555-5555-5555-5555-555555555551', 'inbound', '+15559876543', '+18312732950', 'VGhhbmsgeW91ISBJbCBiZSB0aGVyZS4=', 'delivered', now() - interval '1 hour', now() - interval '1 hour')
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO templates (id, org_id, name, body, created_by)
