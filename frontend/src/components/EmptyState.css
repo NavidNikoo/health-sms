@@ -1,0 +1,43 @@
+.empty-state {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  color: #6b7280;
+}
+
+.empty-state-icon {
+  width: 54px;
+  height: 54px;
+  border-radius: 16px;
+  border: 1px dashed #e5e7eb;
+  margin-bottom: 16px;
+}
+
+.empty-state-title {
+  margin: 0 0 4px;
+  font-size: 20px;
+  color: #111827;
+}
+
+.empty-state-text {
+  margin: 0 0 16px;
+  font-size: 14px;
+}
+
+.empty-state-button {
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: none;
+  background-color: #111827;
+  color: #f9fafb;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.empty-state-button:hover {
+  background-color: #000000;
+}
+

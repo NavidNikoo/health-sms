@@ -1,12 +1,37 @@
 const express = require("express");
-const app = express();
+const cors = require("cors");
+require("dotenv").config();
 
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+// Middleware
+app.use(
+  cors({
+    origin: process.env.FRONTEND_ORIGIN || "http://localhost:5173",
+    credentials: true,
+  })
+);
 app.use(express.json());
 
-app.get("/", (req, res) => {
-    res.send("Health SMS API running");
+// Simple health check
+app.get("/api/health", (req, res) => {
+  res.json({ status: "ok", message: "Health SMS API running" });
 });
 
-app.listen(3000, () => {
-    console.log("Server running on port 3000");
+// Routes
+const authRouter = require("./routes/auth");
+const patientsRouter = require("./routes/patients");
+const conversationsRouter = require("./routes/conversations");
+const phoneNumbersRouter = require("./routes/phoneNumbers");
+
+app.use("/api/auth", authRouter);
+app.use("/api/patients", patientsRouter);
+app.use("/api/conversations", conversationsRouter);
+app.use("/api/phone-numbers", phoneNumbersRouter);
+
+// Start server
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
 });
+

@@ -1,0 +1,150 @@
+.conv-view {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background-color: #ffffff;
+}
+
+.conv-view-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.conv-view-header-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.conv-avatar-large {
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  background-color: #e5e7eb;
+}
+
+.conv-view-header-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.conv-view-phone {
+  font-size: 15px;
+  font-weight: 500;
+  color: #111827;
+}
+
+.conv-view-sub {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.conv-view-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.conv-view-icon-button {
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  border: none;
+  background-color: #f3f4f6;
+  cursor: pointer;
+}
+
+.conv-view-icon-button:hover {
+  background-color: #e5e7eb;
+}
+
+.conv-view-body {
+  flex: 1;
+  padding: 16px;
+  overflow-y: auto;
+  background-color: #f9fafb;
+}
+
+.conv-view-message {
+  max-width: 60%;
+}
+
+.conv-view-message-outbound {
+  margin-left: auto;
+  text-align: right;
+}
+
+.conv-view-message-inbound {
+  margin-right: auto;
+  text-align: left;
+}
+
+.conv-view-message-inbound .conv-view-bubble {
+  background-color: #ffffff;
+  color: #111827;
+  border: 1px solid #e5e7eb;
+}
+
+.conv-view-loading,
+.conv-view-error,
+.conv-view-empty {
+  padding: 24px;
+  text-align: center;
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.conv-view-error {
+  color: #dc2626;
+}
+
+.conv-view-bubble {
+  display: inline-block;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background-color: #111827;
+  color: #f9fafb;
+  font-size: 14px;
+}
+
+.conv-view-meta {
+  margin-top: 4px;
+  font-size: 11px;
+  color: #6b7280;
+}
+
+.conv-view-footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-top: 1px solid #e5e7eb;
+  background-color: #ffffff;
+}
+
+.conv-view-input {
+  flex: 1;
+  resize: none;
+  border-radius: 999px;
+  border: 1px solid #d1d5db;
+  padding: 8px 12px;
+  font: inherit;
+}
+
+.conv-view-send {
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: none;
+  background-color: #111827;
+  color: #f9fafb;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.conv-view-send:hover {
+  background-color: #000000;
+}
+

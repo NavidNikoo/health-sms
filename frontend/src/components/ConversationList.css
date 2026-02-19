@@ -1,0 +1,87 @@
+.conv-list {
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid #e5e7eb;
+  background-color: #f9fafb;
+}
+
+.conv-list-empty {
+  padding: 24px;
+  text-align: center;
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.conv-list-item {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  padding: 10px 12px;
+  border: none;
+  border-bottom: 1px solid #e5e7eb;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.1s ease;
+}
+
+.conv-list-item:hover {
+  background-color: #eef2ff;
+}
+
+.conv-list-item-active {
+  background-color: #e0e7ff;
+}
+
+.conv-list-item-main {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.conv-list-item-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.conv-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  background-color: #e5e7eb;
+}
+
+.conv-phone {
+  font-size: 14px;
+  font-weight: 500;
+  color: #111827;
+}
+
+.conv-date {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.conv-list-item-sub {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.conv-preview {
+  flex: 1;
+  font-size: 13px;
+  color: #4b5563;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.conv-inbox {
+  font-size: 11px;
+  color: #9ca3af;
+}
+

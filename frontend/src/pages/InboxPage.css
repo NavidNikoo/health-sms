@@ -1,0 +1,93 @@
+.inbox-layout {
+  min-height: 100vh;
+  display: flex;
+  background-color: #e5e7eb;
+}
+
+.inbox-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.inbox-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 18px;
+  border-bottom: 1px solid #e5e7eb;
+  background-color: #ffffff;
+}
+
+.inbox-header-left {
+  display: flex;
+  flex-direction: column;
+}
+
+.inbox-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.inbox-subtitle {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.inbox-header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.inbox-icon-button {
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  border: 1px solid #e5e7eb;
+  background-color: #f9fafb;
+  cursor: pointer;
+}
+
+.inbox-icon-button:hover {
+  background-color: #eef2ff;
+}
+
+.inbox-primary-button {
+  padding: 7px 14px;
+  border-radius: 999px;
+  border: none;
+  background-color: #111827;
+  color: #f9fafb;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.inbox-primary-button:hover {
+  background-color: #000000;
+}
+
+.inbox-secondary-button {
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid #e5e7eb;
+  background-color: #ffffff;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.inbox-content {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 320px minmax(0, 1fr);
+  height: calc(100vh - 56px);
+}
+
+.inbox-conv-list {
+  border-right: 1px solid #e5e7eb;
+}
+
+.inbox-conv-view {
+  height: 100%;
+}
