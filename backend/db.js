@@ -18,6 +18,10 @@ const pool = new Pool(
         user: process.env.PGUSER || "postgres",
         password: process.env.PGPASSWORD || "",
         database: process.env.PGDATABASE || "health_sms",
+        ssl:
+          process.env.PGHOST && process.env.PGHOST !== "localhost"
+            ? { rejectUnauthorized: false }
+            : undefined,
       }
 );
 
