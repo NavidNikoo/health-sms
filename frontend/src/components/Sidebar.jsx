@@ -1,3 +1,4 @@
+import { useNavigate, useLocation } from "react-router-dom";
 import "./Sidebar.css";
 import { useAuth } from "../context/AuthContext";
 
@@ -9,8 +10,13 @@ function formatPhone(e164) {
   return e164;
 }
 
-export function Sidebar({ inboxes = [], selectedInboxId, onSelectInbox }) {
+export function Sidebar({ inboxes = [], selectedInboxId, onSelectInbox, totalUnread = 0 }) {
   const { user } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const isContacts = location.pathname === "/contacts";
+  const isInbox = location.pathname === "/inbox";
+
   return (
     <aside className="sidebar">
       <div className="sidebar-header">
@@ -22,11 +28,16 @@ export function Sidebar({ inboxes = [], selectedInboxId, onSelectInbox }) {
         <div className="sidebar-section">
           <button
             type="button"
-            className={"sidebar-item" + (!selectedInboxId ? " sidebar-item-active" : "")}
-            onClick={() => onSelectInbox(null)}
+            className={"sidebar-item" + (isInbox && !selectedInboxId ? " sidebar-item-active" : "")}
+            onClick={() => { if (!isInbox) navigate("/inbox"); onSelectInbox(null); }}
           >
-            <span className="sidebar-item-dot" />
-            <span>All Inboxes</span>
+            <span className="sidebar-item-left">
+              <span className="sidebar-item-dot" />
+              <span>All Inboxes</span>
+            </span>
+            {totalUnread > 0 && (
+              <span className="sidebar-badge sidebar-badge-pop">{totalUnread}</span>
+            )}
           </button>
         </div>
 
@@ -42,13 +53,14 @@ export function Sidebar({ inboxes = [], selectedInboxId, onSelectInbox }) {
                   type="button"
                   className={
                     "sidebar-item sidebar-inbox-item" +
-                    (inbox.id === selectedInboxId ? " sidebar-inbox-item-active" : "")
+                    (inbox.id === selectedInboxId ? " sidebar-inbox-item-active" : "") +
+                    ((inbox.unreadCount ?? 0) > 0 ? " sidebar-inbox-item-unread" : "")
                   }
                   onClick={() => onSelectInbox(inbox.id)}
                 >
-                  <span>{formatPhone(inbox.number)}</span>
+                  <span className="sidebar-inbox-label">{formatPhone(inbox.number)}</span>
                   {(inbox.unreadCount ?? 0) > 0 && (
-                    <span className="sidebar-badge">{inbox.unreadCount}</span>
+                    <span className="sidebar-badge sidebar-badge-pop">{inbox.unreadCount}</span>
                   )}
                 </button>
               ))
@@ -57,9 +69,15 @@ export function Sidebar({ inboxes = [], selectedInboxId, onSelectInbox }) {
         </div>
 
         <div className="sidebar-section">
-          <button className="sidebar-item" type="button">
-            <span className="sidebar-icon-circle" />
-            <span>Contacts</span>
+          <button
+            className={"sidebar-item" + (isContacts ? " sidebar-item-active" : "")}
+            type="button"
+            onClick={() => navigate("/contacts")}
+          >
+            <span className="sidebar-item-left">
+              <span className="sidebar-icon-circle" />
+              <span>Contacts</span>
+            </span>
           </button>
         </div>
 

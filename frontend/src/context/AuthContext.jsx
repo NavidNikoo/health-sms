@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState } from "react";
-import { login as apiLogin, getMe } from "../utils/api";
+import { login as apiLogin, signup as apiSignup, getMe } from "../utils/api";
 
 const AuthContext = createContext(null);
 
@@ -35,6 +35,13 @@ export function AuthProvider({ children }) {
     window.localStorage.setItem("authToken", result.token);
   };
 
+  const handleSignup = async ({ orgName, email, password }) => {
+    const result = await apiSignup({ orgName, email, password });
+    setUser(result.user);
+    setToken(result.token);
+    window.localStorage.setItem("authToken", result.token);
+  };
+
   const logout = () => {
     setUser(null);
     setToken(null);
@@ -47,6 +54,7 @@ export function AuthProvider({ children }) {
     loading,
     isAuthenticated: !!user && !!token,
     login: handleLogin,
+    signup: handleSignup,
     logout,
   };
 

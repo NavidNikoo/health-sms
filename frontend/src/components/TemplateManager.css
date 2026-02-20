@@ -1,0 +1,201 @@
+.tmgr-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 150;
+  animation: tmgr-fade 0.12s ease;
+}
+@keyframes tmgr-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.tmgr-modal {
+  background: #fff;
+  border-radius: 16px;
+  width: 520px;
+  max-width: 92vw;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+  animation: tmgr-slide 0.18s ease;
+  overflow: hidden;
+}
+@keyframes tmgr-slide {
+  from { transform: translateY(16px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.tmgr-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 20px 12px;
+}
+.tmgr-header h2 { margin: 0; font-size: 18px; font-weight: 700; }
+.tmgr-close {
+  border: none; background: none;
+  font-size: 22px; color: #9ca3af; cursor: pointer;
+}
+.tmgr-close:hover { color: #111827; }
+
+.tmgr-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px 12px;
+}
+.tmgr-count { font-size: 13px; color: #6b7280; }
+
+.tmgr-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 12px 12px;
+}
+.tmgr-empty {
+  padding: 32px 20px;
+  text-align: center;
+  color: #9ca3af;
+  font-size: 14px;
+}
+.tmgr-list-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 10px;
+  transition: background 0.1s;
+}
+.tmgr-list-item:hover { background: #f3f4f6; }
+.tmgr-list-item-info { flex: 1; min-width: 0; }
+.tmgr-list-item-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #111827;
+}
+.tmgr-list-item-body {
+  font-size: 12px;
+  color: #6b7280;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 2px;
+}
+.tmgr-list-item-actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+/* ---- Buttons ---- */
+.tmgr-btn {
+  padding: 6px 12px;
+  border-radius: 8px;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  border: none;
+  transition: background 0.12s, opacity 0.12s;
+  white-space: nowrap;
+}
+.tmgr-btn:disabled { opacity: 0.5; cursor: default; }
+.tmgr-btn-primary { background: #111827; color: #f9fafb; }
+.tmgr-btn-primary:hover:not(:disabled) { background: #000; }
+.tmgr-btn-secondary { background: #f3f4f6; color: #374151; border: 1px solid #e5e7eb; }
+.tmgr-btn-secondary:hover:not(:disabled) { background: #e5e7eb; }
+.tmgr-btn-danger { background: #ef4444; color: #fff; }
+.tmgr-btn-danger:hover:not(:disabled) { background: #dc2626; }
+.tmgr-btn-sm { padding: 4px 10px; font-size: 12px; }
+
+/* ---- Form ---- */
+.tmgr-form {
+  padding: 16px 20px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.tmgr-error {
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: #fef2f2;
+  color: #dc2626;
+  font-size: 13px;
+}
+.tmgr-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.tmgr-field span {
+  font-size: 13px;
+  font-weight: 500;
+  color: #374151;
+}
+.tmgr-field input,
+.tmgr-field textarea {
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  font: inherit;
+  font-size: 14px;
+  outline: none;
+  resize: vertical;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.tmgr-field input:focus,
+.tmgr-field textarea:focus {
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.tmgr-var-hints {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.tmgr-var-chip {
+  padding: 3px 8px;
+  border-radius: 6px;
+  border: 1px solid #c7d2fe;
+  background: #eef2ff;
+  color: #6366f1;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: monospace;
+  transition: background 0.1s;
+}
+.tmgr-var-chip:hover { background: #dbeafe; }
+
+.tmgr-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+/* ---- Delete overlay ---- */
+.tmgr-delete-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 16px;
+}
+.tmgr-delete-box {
+  text-align: center;
+}
+.tmgr-delete-box p {
+  margin: 0 0 14px;
+  font-size: 15px;
+  font-weight: 500;
+  color: #111827;
+}

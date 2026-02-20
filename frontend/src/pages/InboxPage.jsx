@@ -1,10 +1,39 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { Sidebar } from "../components/Sidebar";
 import { ConversationList } from "../components/ConversationList";
 import { ConversationView } from "../components/ConversationView";
+import { NewConversationModal } from "../components/NewConversationModal";
+import { SearchOverlay } from "../components/SearchOverlay";
+import { TemplateManager } from "../components/TemplateManager";
 import { useAuth } from "../context/AuthContext";
 import { getConversations, getPhoneNumbers } from "../utils/api";
 import "./InboxPage.css";
+
+const CONV_POLL_INTERVAL = 5000;
+const READ_STATE_KEY = "health-sms-read-state";
+
+function loadReadState() {
+  try {
+    return JSON.parse(localStorage.getItem(READ_STATE_KEY) || "{}");
+  } catch { return {}; }
+}
+
+function saveReadState(state) {
+  localStorage.setItem(READ_STATE_KEY, JSON.stringify(state));
+}
+
+function getUnreadSet(conversations, readState) {
+  const unread = new Set();
+  for (const c of conversations) {
+    if (c.lastMessageDirection !== "inbound") continue;
+    const readAt = readState[c.id];
+    if (!readAt || new Date(c.lastMessageAt) > new Date(readAt)) {
+      unread.add(c.id);
+    }
+  }
+  return unread;
+}
 
 export function InboxPage() {
   const { user, token, logout } = useAuth();
@@ -14,23 +43,113 @@ export function InboxPage() {
   const [inboxes, setInboxes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [showNewConversation, setShowNewConversation] = useState(false);
+  const [readState, setReadState] = useState(loadReadState);
+  const [prefillPhone, setPrefillPhone] = useState("");
+  const [prefillName, setPrefillName] = useState("");
+  const [showSearch, setShowSearch] = useState(false);
+  const [showTemplateManager, setShowTemplateManager] = useState(false);
+  const pollRef = useRef(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const handleKey = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        e.preventDefault();
+        setShowSearch((v) => !v);
+      }
+    };
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, []);
+
+  const markAsRead = useCallback((convId) => {
+    setReadState((prev) => {
+      const next = { ...prev, [convId]: new Date().toISOString() };
+      saveReadState(next);
+      return next;
+    });
+  }, []);
+
+  const handleSelectConversation = useCallback((convId) => {
+    setSelectedConversationId(convId);
+    if (convId) markAsRead(convId);
+  }, [markAsRead]);
+
+  const loadData = useCallback(async () => {
+    if (!token) return;
+    try {
+      const [convs, nums] = await Promise.all([getConversations(token), getPhoneNumbers(token)]);
+      setConversations(convs);
+      setInboxes(nums);
+    } catch (err) {
+      setError(err.message || "Failed to load");
+    }
+  }, [token]);
+
+  useEffect(() => {
+    setLoading(true);
+    setError(null);
+    loadData().finally(() => setLoading(false));
+  }, [loadData]);
+
+  useEffect(() => {
+    const convParam = searchParams.get("conversation");
+    const newToParam = searchParams.get("newTo");
+    const nameParam = searchParams.get("name");
+
+    if (convParam) {
+      setSelectedConversationId(convParam);
+      markAsRead(convParam);
+      setSearchParams({}, { replace: true });
+    } else if (newToParam) {
+      setPrefillPhone(newToParam);
+      setPrefillName(nameParam || "");
+      setShowNewConversation(true);
+      setSearchParams({}, { replace: true });
+    }
+  }, [searchParams, setSearchParams, markAsRead]);
 
   useEffect(() => {
     if (!token) return;
-    (async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const [convs, nums] = await Promise.all([getConversations(token), getPhoneNumbers(token)]);
-        setConversations(convs);
-        setInboxes(nums);
-      } catch (err) {
-        setError(err.message || "Failed to load");
-      } finally {
-        setLoading(false);
+    pollRef.current = setInterval(() => {
+      if (!document.hidden) {
+        getConversations(token)
+          .then((convs) => setConversations(convs))
+          .catch(() => {});
       }
-    })();
+    }, CONV_POLL_INTERVAL);
+    return () => clearInterval(pollRef.current);
   }, [token]);
+
+  const handleConversationCreated = async (conversationId) => {
+    setShowNewConversation(false);
+    await loadData();
+    setSelectedConversationId(conversationId);
+    markAsRead(conversationId);
+  };
+
+  const handleStatusChange = useCallback((convId, newStatus) => {
+    setConversations((prev) =>
+      prev.map((c) => (c.id === convId ? { ...c, status: newStatus } : c))
+    );
+  }, []);
+
+  const unreadIds = getUnreadSet(conversations, readState);
+
+  const inboxUnreadCounts = {};
+  for (const c of conversations) {
+    if (!unreadIds.has(c.id)) continue;
+    const key = c.inboxNumber || c.phoneNumberId;
+    inboxUnreadCounts[key] = (inboxUnreadCounts[key] || 0) + 1;
+  }
+
+  const inboxesWithUnread = inboxes.map((inbox) => ({
+    ...inbox,
+    unreadCount: inboxUnreadCounts[inbox.number] || inboxUnreadCounts[inbox.id] || 0,
+  }));
+  const totalUnread = unreadIds.size;
 
   const selectedInbox = inboxes.find((i) => String(i.id) === String(selectedInboxId));
   const filteredConversations = !selectedInboxId
@@ -41,7 +160,7 @@ export function InboxPage() {
 
   return (
     <div className="inbox-layout">
-      <Sidebar inboxes={inboxes} selectedInboxId={selectedInboxId} onSelectInbox={setSelectedInboxId} />
+      <Sidebar inboxes={inboxesWithUnread} selectedInboxId={selectedInboxId} onSelectInbox={setSelectedInboxId} totalUnread={totalUnread} />
 
       <main className="inbox-main">
         <header className="inbox-header">
@@ -56,6 +175,8 @@ export function InboxPage() {
               type="button"
               className="inbox-icon-button"
               aria-label="Search"
+              onClick={() => setShowSearch(true)}
+              title="Search (⌘K)"
             >
               🔍
             </button>
@@ -70,6 +191,7 @@ export function InboxPage() {
               type="button"
               className="inbox-primary-button"
               aria-label="New conversation"
+              onClick={() => setShowNewConversation(true)}
             >
               + New
             </button>
@@ -93,7 +215,8 @@ export function InboxPage() {
               <ConversationList
                 conversations={filteredConversations}
                 selectedConversationId={selectedConversationId}
-                onSelectConversation={setSelectedConversationId}
+                onSelectConversation={handleSelectConversation}
+                unreadIds={unreadIds}
               />
             )}
           </div>
@@ -102,10 +225,47 @@ export function InboxPage() {
               token={token}
               conversationId={selectedConversationId}
               conversation={conversations.find((c) => c.id === selectedConversationId)}
+              onStartNew={() => setShowNewConversation(true)}
+              onManageTemplates={() => setShowTemplateManager(true)}
+              onStatusChange={handleStatusChange}
             />
           </div>
         </section>
       </main>
+
+      {showNewConversation && (
+        <NewConversationModal
+          token={token}
+          inboxes={inboxes}
+          onClose={() => { setShowNewConversation(false); setPrefillPhone(""); setPrefillName(""); }}
+          onCreated={handleConversationCreated}
+          initialPhone={prefillPhone}
+          initialName={prefillName}
+        />
+      )}
+
+      {showTemplateManager && (
+        <TemplateManager token={token} onClose={() => setShowTemplateManager(false)} />
+      )}
+
+      {showSearch && (
+        <SearchOverlay
+          token={token}
+          onClose={() => setShowSearch(false)}
+          onSelectConversation={(id) => {
+            setShowSearch(false);
+            handleSelectConversation(id);
+          }}
+          onSelectPatient={(patient) => {
+            setShowSearch(false);
+            if (patient.conversationId) {
+              handleSelectConversation(patient.conversationId);
+            } else {
+              navigate(`/contacts`);
+            }
+          }}
+        />
+      )}
     </div>
   );
 }

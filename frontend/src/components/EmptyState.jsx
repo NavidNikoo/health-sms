@@ -1,6 +1,6 @@
 import "./EmptyState.css";
 
-export function EmptyState() {
+export function EmptyState({ onStartNew }) {
   return (
     <div className="empty-state">
       <div className="empty-state-icon" />
@@ -11,9 +11,7 @@ export function EmptyState() {
       <button
         type="button"
         className="empty-state-button"
-        onClick={() => {
-          // placeholder for future \"start conversation\" action
-        }}
+        onClick={onStartNew}
       >
         + Start a conversation
       </button>

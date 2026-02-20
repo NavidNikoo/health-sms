@@ -26,10 +26,13 @@ const patientsRouter = require("./routes/patients");
 const conversationsRouter = require("./routes/conversations");
 const phoneNumbersRouter = require("./routes/phoneNumbers");
 
+const templatesRouter = require("./routes/templates");
+
 app.use("/api/auth", authRouter);
 app.use("/api/patients", patientsRouter);
 app.use("/api/conversations", conversationsRouter);
 app.use("/api/phone-numbers", phoneNumbersRouter);
+app.use("/api/templates", templatesRouter);
 
 const webhooksRouter = require("./routes/webhooks");
 app.use("/api/webhooks", webhooksRouter);

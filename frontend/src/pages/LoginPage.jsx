@@ -37,10 +37,17 @@ export function LoginPage() {
   return (
     <div className="auth-page">
       <div className="auth-card">
-        <h1 className="auth-title">Sign in to Health SMS</h1>
+        <div className="auth-brand">
+          <div className="auth-brand-icon">
+            <svg width="24" height="24" fill="none" stroke="#fff" strokeWidth="2" viewBox="0 0 24 24">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+            </svg>
+          </div>
+          <span className="auth-brand-name">Health SMS</span>
+        </div>
+        <h1 className="auth-title">Welcome back</h1>
         <p className="auth-subtitle">
-          Use the demo account to see the inbox: <code>provider@clinic.demo</code> /{" "}
-          <code>password123</code>
+          Demo account: <code>provider@clinic.demo</code> / <code>password123</code>
         </p>
         {error && <div className="auth-error">{error}</div>}
         <form onSubmit={handleSubmit} className="auth-form">

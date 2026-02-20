@@ -12,7 +12,7 @@ VALUES (
   '22222222-2222-2222-2222-222222222222',
   '11111111-1111-1111-1111-111111111111',
   'provider@clinic.demo',
-  '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi',
+  '$2b$10$8N1/9SStmhWrxz1SO4v77eav6C5dCwdm18RoJ86eHuxPRo5MGz8/G',
   'provider'
 ) ON CONFLICT (org_id, email) DO NOTHING;
 
@@ -50,10 +50,33 @@ VALUES
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO templates (id, org_id, name, body, created_by)
-VALUES (
-  '77777777-7777-7777-7777-777777777771',
-  '11111111-1111-1111-1111-111111111111',
-  'Appointment Reminder',
-  'Hi {{name}}, this is a reminder for your appointment on {{date}} at {{time}}. Reply YES to confirm or NO to reschedule.',
-  '22222222-2222-2222-2222-222222222222'
-) ON CONFLICT (id) DO NOTHING;
+VALUES
+  (
+    '77777777-7777-7777-7777-777777777771',
+    '11111111-1111-1111-1111-111111111111',
+    'Appointment Reminder',
+    'Hi {{name}}, this is a reminder for your appointment on {{date}} at {{time}}. Reply YES to confirm or NO to reschedule.',
+    '22222222-2222-2222-2222-222222222222'
+  ),
+  (
+    '77777777-7777-7777-7777-777777777772',
+    '11111111-1111-1111-1111-111111111111',
+    'Follow-Up Check-In',
+    'Hi {{firstname}}, just checking in after your recent visit. How are you feeling? Let us know if you have any questions.',
+    '22222222-2222-2222-2222-222222222222'
+  ),
+  (
+    '77777777-7777-7777-7777-777777777773',
+    '11111111-1111-1111-1111-111111111111',
+    'Prescription Ready',
+    'Hi {{name}}, your prescription is ready for pickup. Please bring your ID when you come in.',
+    '22222222-2222-2222-2222-222222222222'
+  ),
+  (
+    '77777777-7777-7777-7777-777777777774',
+    '11111111-1111-1111-1111-111111111111',
+    'Office Hours',
+    'Our office hours are Monday-Friday 8AM-5PM. For emergencies, please call 911.',
+    '22222222-2222-2222-2222-222222222222'
+  )
+ON CONFLICT (id) DO NOTHING;
