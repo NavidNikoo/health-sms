@@ -155,6 +155,20 @@
   margin-right: 6px;
 }
 
+.sidebar-nav-icon {
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #9ca3af;
+  flex-shrink: 0;
+}
+
+.sidebar-item-active .sidebar-nav-icon {
+  color: #f9fafb;
+}
+
 .sidebar-add-inbox {
   padding: 8px 10px;
   border-radius: 8px;

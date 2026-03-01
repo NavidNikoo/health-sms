@@ -4,6 +4,7 @@ import { Sidebar } from "../components/Sidebar";
 import { ConversationList } from "../components/ConversationList";
 import { ConversationView } from "../components/ConversationView";
 import { NewConversationModal } from "../components/NewConversationModal";
+import { NewInboxModal } from "../components/NewInboxModal";
 import { SearchOverlay } from "../components/SearchOverlay";
 import { TemplateManager } from "../components/TemplateManager";
 import { useAuth } from "../context/AuthContext";
@@ -44,6 +45,7 @@ export function InboxPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showNewConversation, setShowNewConversation] = useState(false);
+  const [showNewInbox, setShowNewInbox] = useState(false);
   const [readState, setReadState] = useState(loadReadState);
   const [prefillPhone, setPrefillPhone] = useState("");
   const [prefillName, setPrefillName] = useState("");
@@ -160,7 +162,7 @@ export function InboxPage() {
 
   return (
     <div className="inbox-layout">
-      <Sidebar inboxes={inboxesWithUnread} selectedInboxId={selectedInboxId} onSelectInbox={setSelectedInboxId} totalUnread={totalUnread} />
+      <Sidebar inboxes={inboxesWithUnread} selectedInboxId={selectedInboxId} onSelectInbox={setSelectedInboxId} totalUnread={totalUnread} onAddInbox={() => setShowNewInbox(true)} />
 
       <main className="inbox-main">
         <header className="inbox-header">
@@ -264,6 +266,14 @@ export function InboxPage() {
               navigate(`/contacts`);
             }
           }}
+        />
+      )}
+
+      {showNewInbox && (
+        <NewInboxModal
+          token={token}
+          onClose={() => setShowNewInbox(false)}
+          onCreated={() => { setShowNewInbox(false); loadData(); }}
         />
       )}
     </div>

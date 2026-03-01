@@ -1,8 +1,11 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { LoginPage } from "./pages/LoginPage";
 import { SignupPage } from "./pages/SignupPage";
+import { DashboardPage } from "./pages/DashboardPage";
 import { InboxPage } from "./pages/InboxPage";
+import { DialerPage } from "./pages/DialerPage";
 import { ContactsPage } from "./pages/ContactsPage";
+import { NumbersPage } from "./pages/NumbersPage";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import "./App.css";
 
@@ -30,10 +33,26 @@ function AppRoutes() {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/signup" element={<SignupPage />} />
       <Route
+        path="/dashboard"
+        element={
+          <ProtectedRoute>
+            <DashboardPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/inbox"
         element={
           <ProtectedRoute>
             <InboxPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/dialer"
+        element={
+          <ProtectedRoute>
+            <DialerPage />
           </ProtectedRoute>
         }
       />
@@ -45,8 +64,16 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       />
-      <Route path="/" element={<Navigate to="/login" replace />} />
-      <Route path="*" element={<Navigate to="/login" replace />} />
+      <Route
+        path="/numbers"
+        element={
+          <ProtectedRoute>
+            <NumbersPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route path="/" element={<Navigate to="/dashboard" replace />} />
+      <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>
   );
 }
@@ -60,4 +87,3 @@ export default function App() {
     </AuthProvider>
   );
 }
-

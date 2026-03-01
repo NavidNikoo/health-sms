@@ -21,6 +21,8 @@ export function AuthProvider({ children }) {
         setUser(me);
         setToken(storedToken);
       } catch {
+        setUser(null);
+        setToken(null);
         window.localStorage.removeItem("authToken");
       } finally {
         setLoading(false);

@@ -86,7 +86,7 @@ router.post("/", authenticate, async (req, res) => {
     const e164 = normalized.startsWith("1") ? `+${normalized}` : `+1${normalized}`;
 
     const pnCheck = await db.query(
-      "SELECT id, e164_number, provider_sid FROM phone_numbers WHERE id = $1 AND org_id = $2",
+      "SELECT id, e164_number, provider_sid, a2p_status FROM phone_numbers WHERE id = $1 AND org_id = $2",
       [phoneNumberId, req.user.orgId]
     );
     if (pnCheck.rows.length === 0) {
@@ -125,6 +125,14 @@ router.post("/", authenticate, async (req, res) => {
     let message = null;
     if (body && body.trim()) {
       const pn = pnCheck.rows[0];
+
+      // 10DLC gate: warn if this number hasn't been approved for A2P
+      if (pn.a2p_status === "pending") {
+        return res.status(403).json({
+          message: "This number's 10DLC registration is still pending. SMS sending will be available once approved.",
+        });
+      }
+
       const fromNumber = pn.e164_number;
       const toNumber = e164;
       const bodyTrimmed = body.trim();
@@ -209,7 +217,8 @@ router.post("/:id/messages", authenticate, async (req, res) => {
     }
 
     const convResult = await db.query(
-      `SELECT c.id, c.patient_id, c.phone_number_id, p.primary_phone, pn.e164_number, pn.provider_sid
+      `SELECT c.id, c.patient_id, c.phone_number_id, p.primary_phone,
+              pn.e164_number, pn.provider_sid, pn.a2p_status
        FROM conversations c
        JOIN patients p ON p.id = c.patient_id
        JOIN phone_numbers pn ON pn.id = c.phone_number_id
@@ -221,6 +230,13 @@ router.post("/:id/messages", authenticate, async (req, res) => {
     }
 
     const conv = convResult.rows[0];
+
+    if (conv.a2p_status === "pending") {
+      return res.status(403).json({
+        message: "This number's 10DLC registration is still pending. SMS sending will be available once approved.",
+      });
+    }
+
     const fromNumber = conv.e164_number;
     const toNumber = conv.primary_phone;
     const bodyTrimmed = body.trim();

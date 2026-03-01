@@ -206,7 +206,232 @@ export async function getPhoneNumbers(token) {
   const res = await fetch(`${API_BASE}/phone-numbers`, {
     headers: { Authorization: `Bearer ${token}` },
   });
-  if (!res.ok) throw new Error("Failed to fetch phone numbers");
+  if (!res.ok) {
+    const d = await res.json().catch(() => ({}));
+    const msg = d?.message || (res.status === 401 ? "Session expired. Please log out and log back in." : "Failed to fetch phone numbers.");
+    throw new Error(msg);
+  }
+  return res.json();
+}
+
+export async function getAvailableNumbers(token, areaCode) {
+  const res = await fetch(
+    `${API_BASE}/phone-numbers/available?areaCode=${encodeURIComponent(areaCode)}`,
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  if (!res.ok) {
+    const d = await res.json().catch(() => ({}));
+    throw new Error(d.message || "Failed to search available numbers");
+  }
+  return res.json();
+}
+
+export async function provisionPhoneNumber(
+  token,
+  { phoneNumber, label, callForwardTo, callForwardAuthorizedNumberId, callMode }
+) {
+  const res = await fetch(`${API_BASE}/phone-numbers`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ phoneNumber, label, callForwardTo, callForwardAuthorizedNumberId, callMode }),
+  });
+  if (!res.ok) {
+    const d = await res.json().catch(() => ({}));
+    throw new Error(d.message || "Failed to provision number");
+  }
+  return res.json();
+}
+
+export async function updatePhoneNumber(
+  token,
+  id,
+  { label, callForwardTo, callForwardAuthorizedNumberId, callMode }
+) {
+  const res = await fetch(`${API_BASE}/phone-numbers/${id}`, {
+    method: "PATCH",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ label, callForwardTo, callForwardAuthorizedNumberId, callMode }),
+  });
+  if (!res.ok) {
+    const d = await res.json().catch(() => ({}));
+    const msg = d?.message || `Failed to update phone number (${res.status})`;
+    throw new Error(msg);
+  }
+  return res.json();
+}
+
+export async function deletePhoneNumber(token, id) {
+  const res = await fetch(`${API_BASE}/phone-numbers/${id}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) {
+    const d = await res.json().catch(() => ({}));
+    throw new Error(d.message || "Failed to delete phone number");
+  }
+  return res.json();
+}
+
+export async function getAuthorizedForwardNumbers(token) {
+  const res = await fetch(`${API_BASE}/authorized-forward-numbers`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) {
+    const d = await res.json().catch(() => ({}));
+    throw new Error(d.message || "Failed to fetch authorized numbers");
+  }
+  return res.json();
+}
+
+export async function createAuthorizedForwardNumber(token, { phoneNumber, label }) {
+  const res = await fetch(`${API_BASE}/authorized-forward-numbers`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ phoneNumber, label }),
+  });
+  if (!res.ok) {
+    const d = await res.json().catch(() => ({}));
+    throw new Error(d.message || "Failed to authorize number");
+  }
+  return res.json();
+}
+
+// ── Hook up existing (Phase 2) ──
+
+export async function getTwilioOwnedNumbers(token) {
+  const res = await fetch(`${API_BASE}/phone-numbers/twilio-owned`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) {
+    const d = await res.json().catch(() => ({}));
+    throw new Error(d.message || "Failed to load Twilio numbers");
+  }
+  return res.json();
+}
+
+export async function claimPhoneNumber(token, { providerSid, label }) {
+  const res = await fetch(`${API_BASE}/phone-numbers/claim`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ providerSid, label }),
+  });
+  if (!res.ok) {
+    const d = await res.json().catch(() => ({}));
+    throw new Error(d.message || "Failed to claim number");
+  }
+  return res.json();
+}
+
+// ── Porting (Phase 3) ──
+
+export async function checkPortability(token, phoneNumber) {
+  const res = await fetch(
+    `${API_BASE}/porting/check?phoneNumber=${encodeURIComponent(phoneNumber)}`,
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  if (!res.ok) {
+    const d = await res.json().catch(() => ({}));
+    throw new Error(d.message || "Portability check failed");
+  }
+  return res.json();
+}
+
+export async function createPortRequest(token, data) {
+  const res = await fetch(`${API_BASE}/porting/request`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const d = await res.json().catch(() => ({}));
+    throw new Error(d.message || "Failed to submit port request");
+  }
+  return res.json();
+}
+
+export async function getPortRequests(token) {
+  const res = await fetch(`${API_BASE}/porting/requests`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) {
+    const d = await res.json().catch(() => ({}));
+    throw new Error(d.message || "Failed to fetch port requests");
+  }
+  return res.json();
+}
+
+// ── 10DLC Compliance (Phase 4) ──
+
+export async function getOrgCompliance(token) {
+  const res = await fetch(`${API_BASE}/compliance/status`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) {
+    const d = await res.json().catch(() => ({}));
+    throw new Error(d.message || "Failed to fetch compliance status");
+  }
+  return res.json();
+}
+
+export async function submitBrandRegistration(token, data) {
+  const res = await fetch(`${API_BASE}/compliance/brand`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const d = await res.json().catch(() => ({}));
+    throw new Error(d.message || "Brand registration failed");
+  }
+  return res.json();
+}
+
+export async function submitCampaignRegistration(token, data) {
+  const res = await fetch(`${API_BASE}/compliance/campaign`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const d = await res.json().catch(() => ({}));
+    throw new Error(d.message || "Campaign registration failed");
+  }
+  return res.json();
+}
+
+export async function getVoiceToken(token) {
+  const res = await fetch(`${API_BASE}/voice/token`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) {
+    const d = await res.json().catch(() => ({}));
+    throw new Error(d.message || "Voice calling not configured");
+  }
+  return res.json();
+}
+
+export async function initiateCall(token, { to, fromPhoneNumberId }) {
+  const res = await fetch(`${API_BASE}/voice/call`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ to, fromPhoneNumberId }),
+  });
+  if (!res.ok) {
+    const d = await res.json().catch(() => ({}));
+    throw new Error(d.message || "Failed to initiate call");
+  }
+  return res.json();
+}
+
+export async function cancelCall(token, callSid) {
+  const res = await fetch(`${API_BASE}/voice/call/${callSid}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) {
+    const d = await res.json().catch(() => ({}));
+    throw new Error(d.message || "Failed to cancel call");
+  }
   return res.json();
 }
 

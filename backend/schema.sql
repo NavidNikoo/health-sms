@@ -7,9 +7,23 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 -- Organizations (tenants)
 CREATE TABLE organizations (
-  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  name       TEXT NOT NULL,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  id                     UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name                   TEXT NOT NULL,
+  created_at             TIMESTAMPTZ NOT NULL DEFAULT now(),
+  -- 10DLC compliance fields
+  legal_name             TEXT,
+  ein                    TEXT,
+  business_address       TEXT,
+  business_city          TEXT,
+  business_state         TEXT,
+  business_zip           TEXT,
+  brand_type             TEXT DEFAULT 'SOLE_PROPRIETOR',
+  trust_product_sid      TEXT,
+  brand_registration_sid TEXT,
+  brand_status           TEXT,
+  campaign_sid           TEXT,
+  campaign_status        TEXT,
+  messaging_service_sid  TEXT
 );
 
 -- Users (providers, staff, admins)
@@ -24,13 +38,30 @@ CREATE TABLE users (
   UNIQUE (org_id, email)
 );
 
+-- Authorized destination numbers for call forwarding
+CREATE TABLE authorized_forward_numbers (
+  id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id             UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  created_by_user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+  e164_number        TEXT NOT NULL,
+  label              TEXT,
+  status             TEXT NOT NULL DEFAULT 'approved'
+                     CHECK (status IN ('pending', 'approved', 'disabled')),
+  verified_at        TIMESTAMPTZ,
+  created_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (org_id, e164_number)
+);
+
 -- Phone numbers owned by an org (clinic-side)
 CREATE TABLE phone_numbers (
-  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  org_id       UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
-  e164_number  TEXT NOT NULL,
-  label        TEXT,
-  provider_sid TEXT,
+  id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id           UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  e164_number      TEXT NOT NULL,
+  label            TEXT,
+  provider_sid     TEXT,
+  call_forward_to  TEXT,
+  call_forward_authorized_number_id UUID REFERENCES authorized_forward_numbers(id) ON DELETE SET NULL,
+  a2p_status   TEXT CHECK (a2p_status IS NULL OR a2p_status IN ('pending', 'approved', 'failed')),
   UNIQUE (org_id, e164_number)
 );
 
@@ -83,6 +114,30 @@ CREATE TABLE templates (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- Port-in requests
+CREATE TABLE port_requests (
+  id                      UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id                  UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  created_by_user_id      UUID REFERENCES users(id) ON DELETE SET NULL,
+  phone_number            TEXT NOT NULL,
+  losing_carrier          TEXT,
+  authorized_name         TEXT NOT NULL,
+  authorized_email        TEXT NOT NULL,
+  authorized_phone        TEXT,
+  service_address         TEXT,
+  twilio_port_request_sid TEXT,
+  status                  TEXT NOT NULL DEFAULT 'submitted'
+                          CHECK (status IN (
+                            'submitted', 'in_review', 'waiting_for_signature',
+                            'in_progress', 'completed', 'action_required',
+                            'rejected', 'cancelled'
+                          )),
+  status_detail           TEXT,
+  completed_at            TIMESTAMPTZ,
+  created_at              TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at              TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 -- Audit logs (HIPAA - who did what, when)
 CREATE TABLE audit_logs (
   id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -103,3 +158,5 @@ CREATE INDEX idx_audit_logs_org_created ON audit_logs (org_id, created_at DESC);
 CREATE INDEX idx_conversations_org_last_message ON conversations (org_id, last_message_at DESC NULLS LAST);
 CREATE INDEX idx_patients_org ON patients (org_id);
 CREATE INDEX idx_users_org ON users (org_id);
+CREATE INDEX idx_authorized_forward_numbers_org ON authorized_forward_numbers (org_id, created_at DESC);
+CREATE INDEX idx_port_requests_org ON port_requests (org_id, created_at DESC);

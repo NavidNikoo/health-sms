@@ -11,6 +11,7 @@
   "license": "ISC",
   "description": "Health SMS API backend",
   "dependencies": {
+    "@aws-sdk/client-ssm": "^3.997.0",
     "bcrypt": "^6.0.0",
     "cors": "^2.8.6",
     "dotenv": "^17.2.4",

@@ -144,12 +144,21 @@ router.post("/signup", async (req, res) => {
  */
 router.get("/me", authenticate, async (req, res) => {
   try {
-    // User info is already attached by authenticate middleware
+    const result = await db.query(
+      "SELECT u.id, u.org_id, u.email, u.role FROM users u JOIN organizations o ON o.id = u.org_id WHERE u.id = $1",
+      [req.user.userId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(401).json({ message: "Account no longer exists. Please log in again." });
+    }
+
+    const user = result.rows[0];
     res.json({
-      id: req.user.userId,
-      orgId: req.user.orgId,
-      email: req.user.email,
-      role: req.user.role,
+      id: user.id,
+      orgId: user.org_id,
+      email: user.email,
+      role: user.role,
     });
   } catch (error) {
     console.error("Get me error:", error);

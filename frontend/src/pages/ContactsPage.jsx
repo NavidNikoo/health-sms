@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Sidebar } from "../components/Sidebar";
+import { NewInboxModal } from "../components/NewInboxModal";
 import { useAuth } from "../context/AuthContext";
 import {
   getPatients,
@@ -125,6 +126,7 @@ export function ContactsPage() {
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState(null);
+  const [showNewInbox, setShowNewInbox] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [editContact, setEditContact] = useState(null);
   const [showDelete, setShowDelete] = useState(null);
@@ -198,7 +200,7 @@ export function ContactsPage() {
 
   return (
     <div className="ct-layout">
-      <Sidebar inboxes={inboxes} selectedInboxId={null} onSelectInbox={() => navigate("/inbox")} />
+      <Sidebar inboxes={inboxes} selectedInboxId={null} onSelectInbox={() => navigate("/inbox")} onAddInbox={() => setShowNewInbox(true)} />
 
       <main className="ct-main">
         <header className="ct-header">
@@ -308,6 +310,13 @@ export function ContactsPage() {
       )}
       {showDelete && (
         <DeleteConfirm contact={showDelete} onConfirm={handleDelete} onClose={() => setShowDelete(null)} deleting={deleting} />
+      )}
+      {showNewInbox && (
+        <NewInboxModal
+          token={token}
+          onClose={() => setShowNewInbox(false)}
+          onCreated={() => { setShowNewInbox(false); load(); }}
+        />
       )}
     </div>
   );
