@@ -105,6 +105,12 @@ router.post("/call", authenticate, async (req, res) => {
       patientDigits.length === 11 && patientDigits[0] === "1" ? `+${patientDigits}` :
       to;
 
+    if (!normalizeUsNumber(patientE164)) {
+      return res.status(400).json({
+        message: "Enter a valid US phone number to call.",
+      });
+    }
+
     // TwiML: after the staff member answers, bridge to the patient.
     // callerId ensures the patient sees the clinic number, not the staff's cell.
     const twimlResponse = new twilio.twiml.VoiceResponse();
@@ -121,6 +127,15 @@ router.post("/call", authenticate, async (req, res) => {
     res.json({ callSid: call.sid, status: call.status });
   } catch (err) {
     console.error("Error initiating call:", err);
+    if (err?.code === 21211) {
+      return res.status(400).json({ message: "The destination phone number is invalid." });
+    }
+    if (err?.code === 21215) {
+      return res.status(400).json({ message: "The selected clinic caller ID is invalid." });
+    }
+    if (err?.code === 21614) {
+      return res.status(400).json({ message: "This destination cannot receive calls from your Twilio account." });
+    }
     res.status(500).json({ message: err.message || "Failed to initiate call" });
   }
 });

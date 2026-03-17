@@ -4,6 +4,7 @@ import { NumberOnboardingWizard } from "../components/NumberOnboardingWizard";
 import { useAuth } from "../context/AuthContext";
 import {
   getPhoneNumbers,
+  getPhoneNumberDebug,
   deletePhoneNumber,
   getOrgCompliance,
   submitBrandRegistration,
@@ -199,7 +200,7 @@ function SmsComplianceSection({ token }) {
               {isApproved
                 ? "Your business is verified. Numbers are approved for SMS."
                 : hasRegistration
-                  ? "Registration in progress — usually takes 1-2 weeks."
+                  ? "Registration in progress — inbound texts can still arrive, but outbound US SMS is paused until approval."
                   : "Required to send text messages in the US."
               }
             </div>
@@ -228,8 +229,9 @@ function SmsComplianceSection({ token }) {
       {expanded && !hasRegistration && (
         <form className="np-compliance-form" onSubmit={handleSubmit}>
           <p className="np-compliance-form-intro">
-            US carriers require your business to be verified before you can send SMS.
-            This is a one-time registration (~$4 brand + ~$10 campaign). Approval takes about 1-2 weeks.
+            What is 10DLC? It is US carrier verification for app-to-person texting.
+            You can still receive inbound texts while pending, but outbound US SMS stays blocked until approval.
+            This is a one-time registration (~$4 brand + ~$10 campaign) and usually takes 1-2 weeks.
           </p>
 
           <div className="np-form-grid">
@@ -298,12 +300,21 @@ export function NumbersPage() {
   const [numbers, setNumbers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showWizard, setShowWizard] = useState(false);
+  const [debugNumberId, setDebugNumberId] = useState("");
+  const [debugInfo, setDebugInfo] = useState(null);
+  const [debugLoading, setDebugLoading] = useState(false);
+  const [debugError, setDebugError] = useState(null);
 
   const loadNumbers = useCallback(async () => {
     if (!token) return;
     try {
       const nums = await getPhoneNumbers(token);
       setNumbers(nums);
+      if (nums.length > 0) {
+        setDebugNumberId((prev) => prev || nums[0].id);
+      } else {
+        setDebugNumberId("");
+      }
     } catch {
       // handled
     } finally {
@@ -312,6 +323,28 @@ export function NumbersPage() {
   }, [token]);
 
   useEffect(() => { loadNumbers(); }, [loadNumbers]);
+
+  useEffect(() => {
+    if (!token || !debugNumberId) {
+      setDebugInfo(null);
+      setDebugError(null);
+      return;
+    }
+    let isActive = true;
+    setDebugLoading(true);
+    setDebugError(null);
+    getPhoneNumberDebug(token, debugNumberId)
+      .then((data) => {
+        if (isActive) setDebugInfo(data);
+      })
+      .catch((err) => {
+        if (isActive) setDebugError(err.message || "Could not load debug info");
+      })
+      .finally(() => {
+        if (isActive) setDebugLoading(false);
+      });
+    return () => { isActive = false; };
+  }, [token, debugNumberId]);
 
   const handleDelete = async (id) => {
     await deletePhoneNumber(token, id);
@@ -347,7 +380,54 @@ export function NumbersPage() {
           <div className="np-section-header">
             <h2 className="np-section-title">SMS Compliance</h2>
           </div>
+          <p className="np-help-blurb">
+            To send SMS to US mobile numbers, carriers require 10DLC approval. While pending, your number can still
+            receive inbound texts in your inbox.
+          </p>
           <SmsComplianceSection token={token} />
+        </section>
+
+        <section className="np-section">
+          <div className="np-section-header">
+            <h2 className="np-section-title">Debug Info</h2>
+          </div>
+          {numbers.length === 0 ? (
+            <div className="np-empty">
+              <p className="np-empty-desc">Add or connect a number to view diagnostics.</p>
+            </div>
+          ) : (
+            <div className="np-debug-card">
+              <label className="np-form-label np-form-full">
+                Selected number
+                <select
+                  className="np-form-input"
+                  value={debugNumberId}
+                  onChange={(e) => setDebugNumberId(e.target.value)}
+                >
+                  {numbers.map((n) => (
+                    <option key={n.id} value={n.id}>
+                      {n.label ? `${n.label} — ${formatPhone(n.number)}` : formatPhone(n.number)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              {debugLoading ? (
+                <div className="np-debug-note">Loading diagnostics...</div>
+              ) : debugError ? (
+                <div className="np-form-error">{debugError}</div>
+              ) : debugInfo ? (
+                <div className="np-debug-grid">
+                  <div><strong>Number:</strong> {debugInfo.number?.e164Number || "—"}</div>
+                  <div><strong>Label:</strong> {debugInfo.number?.label || "—"}</div>
+                  <div><strong>Provider SID:</strong> {debugInfo.number?.providerSid || "Missing"}</div>
+                  <div><strong>A2P:</strong> {debugInfo.number?.a2pStatus || "Not set"}</div>
+                  <div><strong>Twilio creds:</strong> {debugInfo.twilioConfigured ? "Configured" : "Missing"}</div>
+                  <div><strong>Voice creds:</strong> {debugInfo.voiceConfigured ? "Configured" : "Missing"}</div>
+                  <div><strong>BASE_URL:</strong> {debugInfo.baseUrlConfigured ? "Configured" : "Missing"}</div>
+                </div>
+              ) : null}
+            </div>
+          )}
         </section>
       </div>
 

@@ -33,6 +33,7 @@ function formatMessageDate(iso) {
 
 export function ConversationView({ token, conversationId, conversation, onStartNew, onManageTemplates, onStatusChange }) {
   const [messages, setMessages] = useState([]);
+  const [pendingOutgoing, setPendingOutgoing] = useState([]);
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState(null);
@@ -48,6 +49,17 @@ export function ConversationView({ token, conversationId, conversation, onStartN
   const msgCountRef = useRef(0);
   const menuRef = useRef(null);
 
+  const dedupeMessages = useCallback((list) => {
+    const seen = new Set();
+    const next = [];
+    for (const msg of list) {
+      if (!msg?.id || seen.has(msg.id)) continue;
+      seen.add(msg.id);
+      next.push(msg);
+    }
+    return next;
+  }, []);
+
   const scrollToBottom = useCallback(() => {
     const el = bodyRef.current;
     if (el) el.scrollTop = el.scrollHeight;
@@ -59,7 +71,7 @@ export function ConversationView({ token, conversationId, conversation, onStartN
     setError(null);
     try {
       const msgs = await getMessages(token, conversationId);
-      setMessages(msgs);
+      setMessages(dedupeMessages(msgs));
       msgCountRef.current = msgs.length;
       requestAnimationFrame(scrollToBottom);
     } catch (err) {
@@ -67,9 +79,10 @@ export function ConversationView({ token, conversationId, conversation, onStartN
     } finally {
       setLoading(false);
     }
-  }, [token, conversationId, scrollToBottom]);
+  }, [token, conversationId, scrollToBottom, dedupeMessages]);
 
   useEffect(() => {
+    setPendingOutgoing([]);
     loadMessages();
   }, [loadMessages]);
 
@@ -80,7 +93,7 @@ export function ConversationView({ token, conversationId, conversation, onStartN
       getMessages(token, conversationId)
         .then((msgs) => {
           if (msgs.length !== msgCountRef.current) {
-            setMessages(msgs);
+            setMessages(dedupeMessages(msgs));
             msgCountRef.current = msgs.length;
             requestAnimationFrame(scrollToBottom);
           }
@@ -88,33 +101,66 @@ export function ConversationView({ token, conversationId, conversation, onStartN
         .catch(() => {});
     }, MSG_POLL_INTERVAL);
     return () => clearInterval(pollRef.current);
-  }, [token, conversationId, scrollToBottom]);
+  }, [token, conversationId, scrollToBottom, dedupeMessages]);
 
-  const handleSend = async () => {
-    const body = input.trim();
+  const sendOutgoing = async (body, tempId = `tmp-${Date.now()}`) => {
     if (!body || !token || !conversationId || sending) return;
     setSending(true);
     setError(null);
-    setInput("");
+    setPendingOutgoing((prev) => [
+      ...prev.filter((m) => m.id !== tempId),
+      {
+        id: tempId,
+        direction: "outbound",
+        body,
+        createdAt: new Date().toISOString(),
+        status: "sending",
+        pending: true,
+      },
+    ]);
+
     try {
       const newMsg = await sendMessage(token, conversationId, body);
+      setPendingOutgoing((prev) => prev.filter((m) => m.id !== tempId));
       setMessages((prev) => [
-        ...prev,
+        ...dedupeMessages(prev),
         {
           id: newMsg.id,
           direction: "outbound",
-          body: body,
+          body,
+          status: newMsg.status || "sent",
           createdAt: newMsg.createdAt,
         },
       ]);
       msgCountRef.current += 1;
       requestAnimationFrame(scrollToBottom);
     } catch (err) {
-      setError(err.message || "Failed to send");
-      setInput(body);
+      setPendingOutgoing((prev) =>
+        prev.map((m) =>
+          m.id === tempId
+            ? {
+                ...m,
+                status: "failed",
+                error: err.message || "Failed to send",
+              }
+            : m
+        )
+      );
     } finally {
       setSending(false);
     }
+  };
+
+  const handleSend = async () => {
+    const body = input.trim();
+    if (!body) return;
+    setInput("");
+    await sendOutgoing(body);
+  };
+
+  const handleRetryMessage = async (msg) => {
+    if (!msg || msg.status !== "failed") return;
+    await sendOutgoing(msg.body, msg.id);
   };
 
   const matchedIds = msgSearch.trim()
@@ -171,6 +217,7 @@ export function ConversationView({ token, conversationId, conversation, onStartN
   };
 
   const isClosed = conversation?.status === "closed";
+  const displayMessages = dedupeMessages([...messages, ...pendingOutgoing]);
 
   useEffect(() => {
     if (matchedIds.length > 0) scrollToMessage(matchedIds[matchIdx]);
@@ -282,10 +329,10 @@ export function ConversationView({ token, conversationId, conversation, onStartN
           <div className="conv-view-loading">Loading messages…</div>
         ) : error ? (
           <div className="conv-view-error">{error}</div>
-        ) : messages.length === 0 ? (
+        ) : displayMessages.length === 0 ? (
           <div className="conv-view-empty">No messages yet. Say hello!</div>
         ) : (
-          messages.map((msg) => {
+          displayMessages.map((msg) => {
             const isMatch = matchedIds.includes(msg.id);
             const isCurrent = matchedIds[matchIdx] === msg.id;
             return (
@@ -295,11 +342,33 @@ export function ConversationView({ token, conversationId, conversation, onStartN
                 className={
                   "conv-view-message " +
                   (msg.direction === "outbound" ? "conv-view-message-outbound" : "conv-view-message-inbound") +
+                  (msg.status === "failed" ? " conv-view-message-failed" : "") +
+                  (msg.status === "sending" ? " conv-view-message-sending" : "") +
                   (isCurrent ? " conv-view-message-current" : isMatch ? " conv-view-message-match" : "")
                 }
               >
                 <div className="conv-view-bubble">{msgSearch ? renderBody(msg.body, msgSearch) : msg.body}</div>
-                <div className="conv-view-meta">{formatMessageDate(msg.createdAt)}</div>
+                <div className="conv-view-meta-row">
+                  <div className="conv-view-meta">{formatMessageDate(msg.createdAt)}</div>
+                  {msg.direction === "outbound" && msg.status === "sending" && (
+                    <span className="conv-view-msg-status conv-view-msg-status-sending">Sending...</span>
+                  )}
+                  {msg.direction === "outbound" && msg.status === "failed" && (
+                    <>
+                      <span className="conv-view-msg-status conv-view-msg-status-failed">
+                        Not sent
+                      </span>
+                      <button
+                        type="button"
+                        className="conv-view-retry-btn"
+                        onClick={() => handleRetryMessage(msg)}
+                        disabled={sending}
+                      >
+                        Retry
+                      </button>
+                    </>
+                  )}
+                </div>
               </div>
             );
           })

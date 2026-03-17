@@ -8,7 +8,7 @@ import { NewInboxModal } from "../components/NewInboxModal";
 import { SearchOverlay } from "../components/SearchOverlay";
 import { TemplateManager } from "../components/TemplateManager";
 import { useAuth } from "../context/AuthContext";
-import { getConversations, getPhoneNumbers } from "../utils/api";
+import { getConversations, getPhoneNumbers, getPhoneNumberDebug } from "../utils/api";
 import "./InboxPage.css";
 
 const CONV_POLL_INTERVAL = 5000;
@@ -51,6 +51,9 @@ export function InboxPage() {
   const [prefillName, setPrefillName] = useState("");
   const [showSearch, setShowSearch] = useState(false);
   const [showTemplateManager, setShowTemplateManager] = useState(false);
+  const [debugInfo, setDebugInfo] = useState(null);
+  const [debugLoading, setDebugLoading] = useState(false);
+  const [debugError, setDebugError] = useState(null);
   const pollRef = useRef(null);
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -86,7 +89,7 @@ export function InboxPage() {
       setConversations(convs);
       setInboxes(nums);
     } catch (err) {
-      setError(err.message || "Failed to load");
+      setError(err.message || "We couldn't load your inbox right now. Please try again.");
     }
   }, [token]);
 
@@ -160,6 +163,30 @@ export function InboxPage() {
       ? conversations.filter((c) => c.inboxNumber === selectedInbox.number)
       : conversations.filter((c) => String(c.phoneNumberId) === String(selectedInboxId));
 
+  useEffect(() => {
+    if (!token || !selectedInboxId) {
+      setDebugInfo(null);
+      setDebugError(null);
+      return;
+    }
+
+    let isActive = true;
+    setDebugLoading(true);
+    setDebugError(null);
+    getPhoneNumberDebug(token, selectedInboxId)
+      .then((data) => {
+        if (isActive) setDebugInfo(data);
+      })
+      .catch((err) => {
+        if (isActive) setDebugError(err.message || "Could not load debug info");
+      })
+      .finally(() => {
+        if (isActive) setDebugLoading(false);
+      });
+
+    return () => { isActive = false; };
+  }, [token, selectedInboxId]);
+
   return (
     <div className="inbox-layout">
       <Sidebar inboxes={inboxesWithUnread} selectedInboxId={selectedInboxId} onSelectInbox={setSelectedInboxId} totalUnread={totalUnread} onAddInbox={() => setShowNewInbox(true)} />
@@ -210,9 +237,21 @@ export function InboxPage() {
         <section className="inbox-content">
           <div className="inbox-conv-list">
             {loading ? (
-              <div className="inbox-loading">Loading...</div>
+              <div className="inbox-loading">Loading conversations...</div>
             ) : error ? (
-              <div className="inbox-error">{error}</div>
+              <div className="inbox-error-wrap">
+                <div className="inbox-error">{error}</div>
+                <button type="button" className="inbox-error-retry" onClick={() => loadData()}>
+                  Retry
+                </button>
+              </div>
+            ) : inboxes.length === 0 ? (
+              <div className="inbox-empty-state">
+                <div className="inbox-empty-title">No inbox numbers connected yet</div>
+                <div className="inbox-empty-desc">
+                  Add or connect a number first. We're setting up messaging in the background.
+                </div>
+              </div>
             ) : (
               <ConversationList
                 conversations={filteredConversations}
@@ -223,6 +262,25 @@ export function InboxPage() {
             )}
           </div>
           <div className="inbox-conv-view">
+            {selectedInboxId && (
+              <div className="inbox-debug-card">
+                <div className="inbox-debug-title">Debug Info</div>
+                {debugLoading ? (
+                  <div className="inbox-debug-loading">Loading diagnostics...</div>
+                ) : debugError ? (
+                  <div className="inbox-debug-error">{debugError}</div>
+                ) : debugInfo ? (
+                  <div className="inbox-debug-grid">
+                    <div><strong>Number:</strong> {debugInfo.number?.e164Number || "—"}</div>
+                    <div><strong>Label:</strong> {debugInfo.number?.label || "—"}</div>
+                    <div><strong>Provider SID:</strong> {debugInfo.number?.providerSid || "Missing"}</div>
+                    <div><strong>A2P:</strong> {debugInfo.number?.a2pStatus || "Not set"}</div>
+                    <div><strong>Twilio creds:</strong> {debugInfo.twilioConfigured ? "Configured" : "Missing"}</div>
+                    <div><strong>BASE_URL:</strong> {debugInfo.baseUrlConfigured ? "Configured" : "Missing"}</div>
+                  </div>
+                ) : null}
+              </div>
+            )}
             <ConversationView
               token={token}
               conversationId={selectedConversationId}

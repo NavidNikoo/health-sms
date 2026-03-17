@@ -214,6 +214,17 @@ export async function getPhoneNumbers(token) {
   return res.json();
 }
 
+export async function getPhoneNumberDebug(token, id) {
+  const res = await fetch(`${API_BASE}/phone-numbers/${id}/debug`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) {
+    const d = await res.json().catch(() => ({}));
+    throw new Error(d.message || "Failed to fetch debug info");
+  }
+  return res.json();
+}
+
 export async function getAvailableNumbers(token, areaCode) {
   const res = await fetch(
     `${API_BASE}/phone-numbers/available?areaCode=${encodeURIComponent(areaCode)}`,

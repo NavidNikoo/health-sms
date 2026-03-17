@@ -126,6 +126,7 @@ function BuyNewFlow({ token, onDone, onBack }) {
           <p className="now-intro">
             Search for available US phone numbers by area code.
             Each number costs approximately <strong>$1.15/month</strong>.
+            US outbound SMS requires 10DLC approval, but inbound texts can still arrive while approval is pending.
           </p>
 
           <form onSubmit={handleSearch} className="now-search-row">
@@ -269,6 +270,7 @@ function HookUpFlow({ token, onDone, onBack }) {
         <p className="now-intro">
           These are the numbers in your Twilio account that aren't connected to Health SMS yet.
           Select one to add it.
+            If you plan to text US mobile numbers, you may still need 10DLC approval.
         </p>
 
         {error && <div className="now-error">{error}</div>}
@@ -652,6 +654,9 @@ export function NumberOnboardingWizard({ token, onClose, onCreated }) {
           <div className="now-body">
             <p className="now-intro">
               How would you like to set up your number?
+            </p>
+            <p className="now-intro" style={{ marginTop: -6 }}>
+              Note: outbound SMS to US mobile numbers needs 10DLC approval. Inbound texts can still arrive while review is pending.
             </p>
 
             <div className="now-path-list">

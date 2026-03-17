@@ -125,6 +125,53 @@ router.get("/", authenticate, async (req, res) => {
   }
 });
 
+// GET /:id/debug — lightweight diagnostics for one inbox number
+router.get("/:id/debug", authenticate, async (req, res) => {
+  try {
+    const result = await db.query(
+      `SELECT
+         id,
+         e164_number,
+         label,
+         provider_sid,
+         call_forward_to,
+         call_forward_authorized_number_id,
+         a2p_status
+       FROM phone_numbers
+       WHERE id = $1 AND org_id = $2`,
+      [req.params.id, req.user.orgId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: "Phone number not found" });
+    }
+
+    const row = result.rows[0];
+    res.json({
+      twilioConfigured: !!(process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN),
+      voiceConfigured: !!(
+        process.env.TWILIO_ACCOUNT_SID &&
+        process.env.TWILIO_API_KEY_SID &&
+        process.env.TWILIO_API_KEY_SECRET &&
+        process.env.TWILIO_TWIML_APP_SID
+      ),
+      baseUrlConfigured: !!process.env.BASE_URL,
+      number: {
+        id: row.id,
+        e164Number: row.e164_number,
+        label: row.label,
+        providerSid: row.provider_sid,
+        callForwardTo: row.call_forward_to,
+        callForwardAuthorizedNumberId: row.call_forward_authorized_number_id,
+        a2pStatus: row.a2p_status,
+      },
+    });
+  } catch (err) {
+    console.error("Error fetching phone number debug info:", err);
+    res.status(500).json({ message: "Failed to fetch debug info" });
+  }
+});
+
 // GET /available?areaCode=831 — search Twilio for purchasable numbers
 router.get("/available", authenticate, async (req, res) => {
   const client = getClient();

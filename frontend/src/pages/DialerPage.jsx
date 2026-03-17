@@ -96,6 +96,20 @@ export function DialerPage() {
   const [callSid, setCallSid] = useState(null);
   const [callError, setCallError] = useState(null);
 
+  const getFriendlyCallError = (rawMessage) => {
+    const msg = rawMessage || "";
+    if (msg.includes("Twilio not configured")) {
+      return "Calling is not configured on the backend yet. Add Twilio Account SID/Auth Token in backend env and restart the server.";
+    }
+    if (msg.includes("No forwarding number set")) {
+      return "This inbox does not have a forwarding number yet. Set Forward mode and save a personal number in Call Settings.";
+    }
+    if (msg.includes("Phone number not found")) {
+      return "The selected inbox is no longer available. Refresh the page and select another number.";
+    }
+    return msg || "Call failed. Please try again.";
+  };
+
   const selectedInbox = inboxes.find((i) => i.id === selectedInboxId);
 
   const normalizeE164 = (raw) => {
@@ -117,9 +131,11 @@ export function DialerPage() {
       ]);
       setInboxes(nums);
       setAuthorizedForwardNumbers(authorized);
-      if (nums.length > 0) {
-        setSelectedInboxId(nums[0].id);
-      }
+      setSelectedInboxId((prev) => {
+        if (!nums.length) return "";
+        const stillExists = nums.some((n) => n.id === prev);
+        return stillExists ? prev : nums[0].id;
+      });
     } catch (err) {
       setLoadError(err?.message || "Could not load phone numbers. Try logging out and back in.");
     } finally {
@@ -231,7 +247,7 @@ export function DialerPage() {
       setCallSid(sid);
       setCallStatus("ringing");
     } catch (err) {
-      setCallError(err.message || "Call failed");
+      setCallError(getFriendlyCallError(err.message));
       setCallStatus(null);
     }
   };
@@ -303,7 +319,10 @@ export function DialerPage() {
                   <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.37 2 2 0 0 1 3.6 1.2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L7.91 8.9a16 16 0 0 0 6.1 6.1l.91-.91a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
                 </svg>
               </div>
-              <div className="dialer-active-text">Calling your phone…</div>
+              <div className="dialer-active-text">Calling your forwarding phone...</div>
+              <div className="dialer-active-subtext">
+                Next, we'll bridge you to {formatPhone(toE164(dialNumber)) || dialNumber}
+              </div>
               <button type="button" className="dialer-cancel-call-btn" onClick={handleCancel}>Cancel</button>
             </div>
           )}
@@ -375,6 +394,11 @@ export function DialerPage() {
                   </svg>
                 </button>
               </div>
+              {!selectedInboxId && !loadingInboxes && (
+                <div className="dialer-inline-hint">
+                  Add or connect a number first in <strong>Numbers</strong> to place calls.
+                </div>
+              )}
             </>
           )}
 
