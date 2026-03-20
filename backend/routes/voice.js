@@ -3,6 +3,8 @@ const twilio = require("twilio");
 const db = require("../db");
 const { authenticate } = require("../middleware/auth");
 const { getClient } = require("../twilio");
+const { audit } = require("../lib/auditLogger");
+const { validateTwilioSignature } = require("../middleware/validateTwilioSignature");
 
 const router = express.Router();
 
@@ -124,9 +126,10 @@ router.post("/call", authenticate, async (req, res) => {
       twiml: twimlResponse.toString(),
     });
 
+    await audit({ orgId: req.user.orgId, userId: req.user.userId, eventType: "call.initiate", resourceType: "call", resourceId: null, metadata: { callSid: call.sid }, req });
     res.json({ callSid: call.sid, status: call.status });
   } catch (err) {
-    console.error("Error initiating call:", err);
+    console.error("Error initiating call:", err.message);
     if (err?.code === 21211) {
       return res.status(400).json({ message: "The destination phone number is invalid." });
     }
@@ -164,8 +167,7 @@ router.delete("/call/:sid", authenticate, async (req, res) => {
 
 // ─── TwiML Webhooks (called by Twilio, no JWT auth) ──────────────────────────
 
-// POST /twiml/outbound — used by TwiML App when browser makes a call
-router.post("/twiml/outbound", (req, res) => {
+router.post("/twiml/outbound", validateTwilioSignature("/api/voice/twiml/outbound"), (req, res) => {
   const { To, From } = req.body;
 
   const twiml = new twilio.twiml.VoiceResponse();
@@ -181,8 +183,7 @@ router.post("/twiml/outbound", (req, res) => {
   res.type("text/xml").send(twiml.toString());
 });
 
-// POST /twiml/inbound — called when a patient calls a clinic number
-router.post("/twiml/inbound", async (req, res) => {
+router.post("/twiml/inbound", validateTwilioSignature("/api/voice/twiml/inbound"), async (req, res) => {
   const twiml = new twilio.twiml.VoiceResponse();
 
   try {
@@ -214,7 +215,7 @@ router.post("/twiml/inbound", async (req, res) => {
       twiml.hangup();
     }
   } catch (err) {
-    console.error("Inbound voice webhook error:", err);
+    console.error("Inbound voice webhook error:", err.message);
     twiml.hangup();
   }
 

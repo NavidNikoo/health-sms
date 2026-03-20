@@ -2,6 +2,7 @@ const express = require("express");
 const db = require("../db");
 const { authenticate } = require("../middleware/auth");
 const { getClient } = require("../twilio");
+const { audit } = require("../lib/auditLogger");
 
 const router = express.Router();
 
@@ -120,7 +121,7 @@ router.get("/", authenticate, async (req, res) => {
     }));
     res.json(numbers);
   } catch (err) {
-    console.error("Error fetching phone numbers", err);
+    console.error("Error fetching phone numbers", err.message);
     res.status(500).json({ message: "Error fetching phone numbers" });
   }
 });
@@ -167,7 +168,7 @@ router.get("/:id/debug", authenticate, async (req, res) => {
       },
     });
   } catch (err) {
-    console.error("Error fetching phone number debug info:", err);
+    console.error("Error fetching phone number debug info:", err.message);
     res.status(500).json({ message: "Failed to fetch debug info" });
   }
 });
@@ -201,7 +202,7 @@ router.get("/available", authenticate, async (req, res) => {
       }))
     );
   } catch (err) {
-    console.error("Error searching available numbers:", err);
+    console.error("Error searching available numbers:", err.message);
     res.status(500).json({ message: err.message || "Failed to search available numbers" });
   }
 });
@@ -257,6 +258,7 @@ router.post("/", authenticate, async (req, res) => {
     );
 
     const row = result.rows[0];
+    await audit({ orgId: req.user.orgId, userId: req.user.userId, eventType: "phone_number.provision", resourceType: "phone_number", resourceId: row.id, req });
     res.status(201).json({
       id: row.id,
       number: row.e164_number,
@@ -267,7 +269,7 @@ router.post("/", authenticate, async (req, res) => {
       unreadCount: 0,
     });
   } catch (err) {
-    console.error("Error provisioning phone number:", err);
+    console.error("Error provisioning phone number:", err.message);
     const isValidationError =
       err.message?.includes("authorized") ||
       err.message?.includes("valid forwarding");
@@ -301,7 +303,7 @@ router.get("/twilio-owned", authenticate, async (req, res) => {
 
     res.json(unclaimed);
   } catch (err) {
-    console.error("Error listing Twilio-owned numbers:", err);
+    console.error("Error listing Twilio-owned numbers:", err.message);
     res.status(500).json({ message: err.message || "Failed to list Twilio numbers" });
   }
 });
@@ -347,6 +349,7 @@ router.post("/claim", authenticate, async (req, res) => {
     );
 
     const row = result.rows[0];
+    await audit({ orgId: req.user.orgId, userId: req.user.userId, eventType: "phone_number.claim", resourceType: "phone_number", resourceId: row.id, req });
     res.status(201).json({
       id: row.id,
       number: row.e164_number,
@@ -355,7 +358,7 @@ router.post("/claim", authenticate, async (req, res) => {
       unreadCount: 0,
     });
   } catch (err) {
-    console.error("Error claiming phone number:", err);
+    console.error("Error claiming phone number:", err.message);
     if (err.code === 20404 || err.status === 404) {
       return res.status(404).json({ message: "Number not found in your Twilio account" });
     }
@@ -396,6 +399,7 @@ router.patch("/:id", authenticate, async (req, res) => {
     }
 
     const row = result.rows[0];
+    await audit({ orgId: req.user.orgId, userId: req.user.userId, eventType: "phone_number.update", resourceType: "phone_number", resourceId: row.id, req });
     res.json({
       id: row.id,
       number: row.e164_number,
@@ -405,7 +409,7 @@ router.patch("/:id", authenticate, async (req, res) => {
       callForwardAuthorizedNumberId: row.call_forward_authorized_number_id,
     });
   } catch (err) {
-    console.error("Error updating phone number:", err);
+    console.error("Error updating phone number:", err.message);
     if (err.code === "23503") {
       return res.status(400).json({
         message: "Your session is invalid — please log out and log back in.",
@@ -447,9 +451,10 @@ router.delete("/:id", authenticate, async (req, res) => {
       [req.params.id, req.user.orgId]
     );
 
+    await audit({ orgId: req.user.orgId, userId: req.user.userId, eventType: "phone_number.delete", resourceType: "phone_number", resourceId: req.params.id, req });
     res.json({ message: "Deleted" });
   } catch (err) {
-    console.error("Error deleting phone number:", err);
+    console.error("Error deleting phone number:", err.message);
     res.status(500).json({ message: "Error deleting phone number" });
   }
 });

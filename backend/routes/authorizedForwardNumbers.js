@@ -34,7 +34,7 @@ router.get("/", authenticate, async (req, res) => {
       }))
     );
   } catch (err) {
-    console.error("Error fetching authorized forwarding numbers:", err);
+    console.error("Error fetching authorized forwarding numbers:", err.message);
     res.status(500).json({ message: "Failed to fetch authorized numbers" });
   }
 });
@@ -72,7 +72,7 @@ router.post("/", authenticate, async (req, res) => {
       createdAt: row.created_at,
     });
   } catch (err) {
-    console.error("Error creating authorized forwarding number:", err);
+    console.error("Error creating authorized forwarding number:", err.message);
     if (err.code === "23503") {
       return res.status(400).json({
         message: "Your session is invalid — please log out and log back in.",

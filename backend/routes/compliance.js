@@ -34,7 +34,7 @@ router.get("/status", authenticate, async (req, res) => {
       hasRegistration: !!(org.brand_registration_sid || org.brand_status),
     });
   } catch (err) {
-    console.error("Error fetching compliance status:", err);
+    console.error("Error fetching compliance status:", err.message);
     res.status(500).json({ message: "Failed to fetch compliance status" });
   }
 });
@@ -117,7 +117,7 @@ router.post("/brand", authenticate, async (req, res) => {
         [customerProfile.sid, brandSid, brandStatus, req.user.orgId]
       );
     } catch (twilioErr) {
-      console.error("Twilio brand registration error:", twilioErr);
+      console.error("Twilio brand registration error:", twilioErr.message);
       // Save as pending even if Twilio API fails — can retry
       await db.query(
         `UPDATE organizations SET brand_status = 'PENDING' WHERE id = $1`,
@@ -133,7 +133,7 @@ router.post("/brand", authenticate, async (req, res) => {
         : "Brand registration submitted. Review usually takes 1-2 weeks.",
     });
   } catch (err) {
-    console.error("Error registering brand:", err);
+    console.error("Error registering brand:", err.message);
     res.status(500).json({ message: err.message || "Brand registration failed" });
   }
 });
@@ -233,7 +233,7 @@ router.post("/campaign", authenticate, async (req, res) => {
         : "Campaign submitted for review. Usually takes a few days.",
     });
   } catch (err) {
-    console.error("Error registering campaign:", err);
+    console.error("Error registering campaign:", err.message);
     res.status(500).json({ message: err.message || "Campaign registration failed" });
   }
 });
@@ -291,7 +291,7 @@ router.post("/refresh", authenticate, async (req, res) => {
 
     res.json({ brandStatus, campaignStatus });
   } catch (err) {
-    console.error("Error refreshing compliance:", err);
+    console.error("Error refreshing compliance:", err.message);
     res.status(500).json({ message: "Failed to refresh status" });
   }
 });

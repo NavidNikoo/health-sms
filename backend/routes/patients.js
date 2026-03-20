@@ -1,6 +1,8 @@
 const express = require("express");
 const db = require("../db");
 const { authenticate } = require("../middleware/auth");
+const { audit } = require("../lib/auditLogger");
+const { decryptBody } = require("../lib/phiCrypto");
 
 const router = express.Router();
 
@@ -41,14 +43,12 @@ router.get("/", authenticate, async (req, res) => {
       notes: r.notes,
       createdAt: r.created_at,
       conversationId: r.conversation_id || null,
-      lastMessage: r.last_message ? (() => {
-        try { return Buffer.from(r.last_message, "base64").toString("utf8"); } catch { return r.last_message; }
-      })() : null,
+      lastMessage: r.last_message ? decryptBody(r.last_message) : null,
     }));
 
     res.json(patients);
   } catch (err) {
-    console.error("Error fetching patients", err);
+    console.error("Error fetching patients", err.message);
     res.status(500).json({ message: "Error fetching patients" });
   }
 });
@@ -73,7 +73,7 @@ router.get("/:id", authenticate, async (req, res) => {
       conversationCount: parseInt(r.conversation_count, 10),
     });
   } catch (err) {
-    console.error("Error fetching patient", err);
+    console.error("Error fetching patient", err.message);
     res.status(500).json({ message: "Error fetching patient" });
   }
 });
@@ -102,9 +102,10 @@ router.post("/", authenticate, async (req, res) => {
     );
 
     const r = result.rows[0];
+    await audit({ orgId: req.user.orgId, userId: req.user.userId, eventType: "patient.create", resourceType: "patient", resourceId: r.id, req });
     res.status(201).json({ id: r.id, fullName: r.full_name, primaryPhone: r.primary_phone, notes: r.notes, createdAt: r.created_at });
   } catch (err) {
-    console.error("Error creating patient", err);
+    console.error("Error creating patient:", err.message);
     res.status(500).json({ message: "Error creating patient" });
   }
 });
@@ -136,9 +137,10 @@ router.put("/:id", authenticate, async (req, res) => {
 
     if (result.rows.length === 0) return res.status(404).json({ message: "Patient not found" });
     const r = result.rows[0];
+    await audit({ orgId: req.user.orgId, userId: req.user.userId, eventType: "patient.update", resourceType: "patient", resourceId: r.id, req });
     res.json({ id: r.id, fullName: r.full_name, primaryPhone: r.primary_phone, notes: r.notes, createdAt: r.created_at });
   } catch (err) {
-    console.error("Error updating patient", err);
+    console.error("Error updating patient:", err.message);
     res.status(500).json({ message: "Error updating patient" });
   }
 });
@@ -161,9 +163,10 @@ router.delete("/:id", authenticate, async (req, res) => {
       [req.params.id, req.user.orgId]
     );
     if (result.rows.length === 0) return res.status(404).json({ message: "Patient not found" });
+    await audit({ orgId: req.user.orgId, userId: req.user.userId, eventType: "patient.delete", resourceType: "patient", resourceId: req.params.id, req });
     res.json({ message: "Deleted" });
   } catch (err) {
-    console.error("Error deleting patient", err);
+    console.error("Error deleting patient:", err.message);
     res.status(500).json({ message: "Error deleting patient" });
   }
 });

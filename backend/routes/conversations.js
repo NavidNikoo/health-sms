@@ -2,17 +2,14 @@ const express = require("express");
 const db = require("../db");
 const { authenticate } = require("../middleware/auth");
 const { sendSms } = require("../twilio");
+const { audit } = require("../lib/auditLogger");
+const { encryptBody, decryptBody } = require("../lib/phiCrypto");
 
 const router = express.Router();
 
+// Alias kept for backwards-compatible read paths
 function decodeBody(enc) {
-  if (!enc) return "";
-  try {
-    const decoded = Buffer.from(enc, "base64").toString("utf8");
-    return /^[\x20-\x7E\n\r\t]+$/.test(decoded) ? decoded : enc;
-  } catch {
-    return enc;
-  }
+  return decryptBody(enc);
 }
 
 router.get("/", authenticate, async (req, res) => {
@@ -23,16 +20,15 @@ router.get("/", authenticate, async (req, res) => {
 
     if (q && q.trim()) {
       params.push(`%${q.trim()}%`);
+      // Message-body search is disabled because body_encrypted is now
+      // AES-256-GCM ciphertext.  Search by patient name / phone only.
       whereExtra = ` AND (
         p.full_name ILIKE $2
         OR p.primary_phone ILIKE $2
-        OR EXISTS (SELECT 1 FROM messages m2 WHERE m2.conversation_id = c.id AND m2.body_encrypted ILIKE $2)
       )`;
     }
 
-    const matchSnippetSelect = q && q.trim()
-      ? `, (SELECT m3.body_encrypted FROM messages m3 WHERE m3.conversation_id = c.id AND m3.body_encrypted ILIKE $2 ORDER BY m3.created_at DESC LIMIT 1) AS matched_message`
-      : "";
+    const matchSnippetSelect = "";
 
     const result = await db.query(
       `
@@ -70,7 +66,7 @@ router.get("/", authenticate, async (req, res) => {
 
     res.json(conversations);
   } catch (err) {
-    console.error("Error fetching conversations", err);
+    console.error("Error fetching conversations", err.message);
     res.status(500).json({ message: "Error fetching conversations" });
   }
 });
@@ -144,21 +140,33 @@ router.post("/", authenticate, async (req, res) => {
           const { sid } = await sendSms(fromNumber, toNumber, bodyTrimmed);
           vendorMessageId = sid;
         } catch (twilioErr) {
-          console.error("Twilio send failed:", twilioErr);
+          console.error("Twilio send failed:", twilioErr.message);
           status = "failed";
         }
       }
+
+      const encryptedBody = encryptBody(bodyTrimmed);
 
       const msgResult = await db.query(
         `INSERT INTO messages (conversation_id, direction, from_number, to_number, body_encrypted, status, sent_at, vendor_message_id)
          VALUES ($1, 'outbound', $2, $3, $4, $5, now(), $6)
          RETURNING id, direction, body_encrypted, status, sent_at, created_at`,
-        [conversationId, fromNumber, toNumber, bodyTrimmed, status, vendorMessageId]
+        [conversationId, fromNumber, toNumber, encryptedBody, status, vendorMessageId]
       );
 
       await db.query("UPDATE conversations SET last_message_at = now() WHERE id = $1", [conversationId]);
       message = msgResult.rows[0];
     }
+
+    await audit({
+      orgId: req.user.orgId,
+      userId: req.user.userId,
+      eventType: message ? "message.send" : "conversation.create",
+      resourceType: message ? "message" : "conversation",
+      resourceId: message?.id || conversationId,
+      metadata: { conversationId, patientId: patient.id },
+      req,
+    });
 
     res.status(201).json({
       conversationId,
@@ -167,7 +175,7 @@ router.post("/", authenticate, async (req, res) => {
       message,
     });
   } catch (err) {
-    console.error("Error creating conversation", err);
+    console.error("Error creating conversation:", err.message);
     res.status(500).json({ message: "Error creating conversation" });
   }
 });
@@ -203,7 +211,7 @@ router.get("/:id/messages", authenticate, async (req, res) => {
 
     res.json(messages);
   } catch (err) {
-    console.error("Error fetching messages", err);
+    console.error("Error fetching messages", err.message);
     res.status(500).json({ message: "Error fetching messages" });
   }
 });
@@ -250,33 +258,46 @@ router.post("/:id/messages", authenticate, async (req, res) => {
         const { sid } = await sendSms(fromNumber, toNumber, bodyTrimmed);
         vendorMessageId = sid;
       } catch (twilioErr) {
-        console.error("Twilio send failed:", twilioErr);
+        console.error("Twilio send failed:", twilioErr.message);
         status = "failed";
       }
     }
+
+    const encryptedBody = encryptBody(bodyTrimmed);
 
     const msgResult = await db.query(
       `INSERT INTO messages (conversation_id, direction, from_number, to_number, body_encrypted, status, sent_at, vendor_message_id)
        VALUES ($1, 'outbound', $2, $3, $4, $5, now(), $6)
        RETURNING id, direction, from_number, to_number, body_encrypted, status, sent_at, created_at`,
-      [id, fromNumber, toNumber, bodyTrimmed, status, vendorMessageId]
+      [id, fromNumber, toNumber, encryptedBody, status, vendorMessageId]
     );
 
     await db.query("UPDATE conversations SET last_message_at = now() WHERE id = $1", [id]);
 
     const row = msgResult.rows[0];
+
+    await audit({
+      orgId: req.user.orgId,
+      userId: req.user.userId,
+      eventType: "message.send",
+      resourceType: "message",
+      resourceId: row.id,
+      metadata: { conversationId: id, status },
+      req,
+    });
+
     res.status(201).json({
       id: row.id,
       direction: row.direction,
       fromNumber: row.from_number,
       toNumber: row.to_number,
-      body: row.body_encrypted,
+      body: decryptBody(row.body_encrypted),
       status: row.status,
       sentAt: row.sent_at,
       createdAt: row.created_at,
     });
   } catch (err) {
-    console.error("Error sending message", err);
+    console.error("Error sending message:", err.message);
     res.status(500).json({ message: "Error sending message" });
   }
 });
@@ -297,7 +318,7 @@ router.patch("/:id", authenticate, async (req, res) => {
     }
     res.json(result.rows[0]);
   } catch (err) {
-    console.error("Error updating conversation", err);
+    console.error("Error updating conversation", err.message);
     res.status(500).json({ message: "Error updating conversation" });
   }
 });

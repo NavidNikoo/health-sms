@@ -3,6 +3,7 @@ const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const db = require("../db");
 const { authenticate } = require("../middleware/auth");
+const { audit } = require("../lib/auditLogger");
 
 const router = express.Router();
 
@@ -60,7 +61,16 @@ router.post("/login", async (req, res) => {
       expiresIn: process.env.JWT_EXPIRES_IN || "24h",
     });
 
-    // Return token and user info (without password_hash)
+    await audit({
+      orgId: user.org_id,
+      userId: user.id,
+      eventType: "auth.login",
+      resourceType: "user",
+      resourceId: user.id,
+      metadata: { email: user.email },
+      req,
+    });
+
     res.json({
       token,
       user: {
@@ -71,7 +81,7 @@ router.post("/login", async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Login error:", error);
+    console.error("Login error:", error.message);
     res.status(500).json({ message: "Login failed" });
   }
 });
@@ -123,6 +133,16 @@ router.post("/signup", async (req, res) => {
       expiresIn: process.env.JWT_EXPIRES_IN || "24h",
     });
 
+    await audit({
+      orgId: user.org_id,
+      userId: user.id,
+      eventType: "auth.signup",
+      resourceType: "user",
+      resourceId: user.id,
+      metadata: { email: user.email },
+      req,
+    });
+
     res.status(201).json({
       token,
       user: {
@@ -133,7 +153,7 @@ router.post("/signup", async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Signup error:", error);
+    console.error("Signup error:", error.message);
     res.status(500).json({ message: "Signup failed" });
   }
 });

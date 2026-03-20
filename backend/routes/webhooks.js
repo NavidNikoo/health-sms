@@ -1,5 +1,8 @@
 const express = require("express");
 const db = require("../db");
+const { audit } = require("../lib/auditLogger");
+const { encryptBody } = require("../lib/phiCrypto");
+const { validateTwilioSignature } = require("../middleware/validateTwilioSignature");
 
 const router = express.Router();
 
@@ -16,12 +19,12 @@ const router = express.Router();
  *   4. Insert inbound message.
  *   5. Return empty TwiML so Twilio knows we handled it.
  */
-router.post("/twilio/sms", async (req, res) => {
+router.post("/twilio/sms", validateTwilioSignature("/api/webhooks/twilio/sms"), async (req, res) => {
   try {
     const { From, To, Body, MessageSid } = req.body;
 
     if (!From || !To || !Body) {
-      console.error("Webhook missing required fields", { From, To, Body });
+      console.error("Webhook missing required fields (From/To/Body)");
       return res.type("text/xml").status(400).send("<Response></Response>");
     }
 
@@ -76,25 +79,32 @@ router.post("/twilio/sms", async (req, res) => {
       conversationId = newConv.rows[0].id;
     }
 
-    // 4. Insert inbound message
+    const encryptedBody = encryptBody(messageBody);
+
     await db.query(
       `INSERT INTO messages (conversation_id, direction, from_number, to_number, body_encrypted, vendor_message_id, status, sent_at)
        VALUES ($1, 'inbound', $2, $3, $4, $5, 'delivered', now())`,
-      [conversationId, patientPhone, inboxE164, messageBody, MessageSid || null]
+      [conversationId, patientPhone, inboxE164, encryptedBody, MessageSid || null]
     );
 
-    // Update conversation timestamp
     await db.query(
       "UPDATE conversations SET last_message_at = now() WHERE id = $1",
       [conversationId]
     );
 
-    console.log(`Inbound SMS from ${patientPhone} to ${inboxE164}: "${messageBody}"`);
+    await audit({
+      orgId: orgId,
+      userId: null,
+      eventType: "message.inbound",
+      resourceType: "message",
+      resourceId: null,
+      metadata: { conversationId, vendorMessageId: MessageSid || null },
+      req,
+    });
 
-    // 5. Return empty TwiML
     res.type("text/xml").status(200).send("<Response></Response>");
   } catch (err) {
-    console.error("Webhook error:", err);
+    console.error("Webhook error:", err.message);
     res.type("text/xml").status(500).send("<Response></Response>");
   }
 });

@@ -1,6 +1,7 @@
 const express = require("express");
 const db = require("../db");
 const { authenticate } = require("../middleware/auth");
+const { audit } = require("../lib/auditLogger");
 
 const router = express.Router();
 
@@ -16,7 +17,7 @@ router.get("/", authenticate, async (req, res) => {
       createdBy: r.created_by, createdAt: r.created_at,
     })));
   } catch (err) {
-    console.error("Error fetching templates", err);
+    console.error("Error fetching templates", err.message);
     res.status(500).json({ message: "Error fetching templates" });
   }
 });
@@ -31,7 +32,7 @@ router.get("/:id", authenticate, async (req, res) => {
     const r = result.rows[0];
     res.json({ id: r.id, name: r.name, body: r.body, createdBy: r.created_by, createdAt: r.created_at });
   } catch (err) {
-    console.error("Error fetching template", err);
+    console.error("Error fetching template", err.message);
     res.status(500).json({ message: "Error fetching template" });
   }
 });
@@ -49,9 +50,10 @@ router.post("/", authenticate, async (req, res) => {
       [req.user.orgId, name.trim(), body.trim(), req.user.userId]
     );
     const r = result.rows[0];
+    await audit({ orgId: req.user.orgId, userId: req.user.userId, eventType: "template.create", resourceType: "template", resourceId: r.id, req });
     res.status(201).json({ id: r.id, name: r.name, body: r.body, createdBy: r.created_by, createdAt: r.created_at });
   } catch (err) {
-    console.error("Error creating template", err);
+    console.error("Error creating template:", err.message);
     res.status(500).json({ message: "Error creating template" });
   }
 });
@@ -70,9 +72,10 @@ router.put("/:id", authenticate, async (req, res) => {
     );
     if (result.rows.length === 0) return res.status(404).json({ message: "Template not found" });
     const r = result.rows[0];
+    await audit({ orgId: req.user.orgId, userId: req.user.userId, eventType: "template.update", resourceType: "template", resourceId: r.id, req });
     res.json({ id: r.id, name: r.name, body: r.body, createdBy: r.created_by, createdAt: r.created_at });
   } catch (err) {
-    console.error("Error updating template", err);
+    console.error("Error updating template:", err.message);
     res.status(500).json({ message: "Error updating template" });
   }
 });
@@ -84,9 +87,10 @@ router.delete("/:id", authenticate, async (req, res) => {
       [req.params.id, req.user.orgId]
     );
     if (result.rows.length === 0) return res.status(404).json({ message: "Template not found" });
+    await audit({ orgId: req.user.orgId, userId: req.user.userId, eventType: "template.delete", resourceType: "template", resourceId: req.params.id, req });
     res.json({ message: "Deleted" });
   } catch (err) {
-    console.error("Error deleting template", err);
+    console.error("Error deleting template:", err.message);
     res.status(500).json({ message: "Error deleting template" });
   }
 });

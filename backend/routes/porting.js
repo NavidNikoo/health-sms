@@ -50,7 +50,7 @@ router.get("/check", authenticate, async (req, res) => {
       reasonCode: result.notPortableReasonCode || null,
     });
   } catch (err) {
-    console.error("Portability check error:", err);
+    console.error("Portability check error:", err.message);
     // If the porting API isn't enabled or returns 404, treat as "unknown but allow"
     if (err.status === 404 || err.code === 20404) {
       return res.json({
@@ -183,7 +183,7 @@ router.post("/request", authenticate, async (req, res) => {
       createdAt: row.created_at,
     });
   } catch (err) {
-    console.error("Error creating port request:", err);
+    console.error("Error creating port request:", err.message);
     res.status(500).json({
       message: err.message || "Failed to submit port request",
     });
@@ -218,7 +218,7 @@ router.get("/requests", authenticate, async (req, res) => {
       }))
     );
   } catch (err) {
-    console.error("Error listing port requests:", err);
+    console.error("Error listing port requests:", err.message);
     res.status(500).json({ message: "Failed to fetch port requests" });
   }
 });
@@ -256,7 +256,7 @@ router.post("/webhook", async (req, res) => {
     );
     res.json({ ok: true });
   } catch (err) {
-    console.error("Port webhook error:", err);
+    console.error("Port webhook error:", err.message);
     res.status(500).json({ message: "Webhook processing failed" });
   }
 });

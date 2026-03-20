@@ -1,5 +1,6 @@
 const express = require("express");
 const cors = require("cors");
+const helmet = require("helmet");
 require("dotenv").config();
 
 async function start() {
@@ -15,6 +16,10 @@ async function start() {
   const app = express();
   const PORT = process.env.PORT || 3000;
 
+  app.use(helmet({
+    contentSecurityPolicy: false, // handled by nginx in production
+    hsts: { maxAge: 63072000, includeSubDomains: true },
+  }));
   app.use(
     cors({
       origin: process.env.FRONTEND_ORIGIN || "http://localhost:5173",
