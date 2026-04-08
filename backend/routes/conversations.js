@@ -7,6 +7,12 @@ const { encryptBody, decryptBody } = require("../lib/phiCrypto");
 
 const router = express.Router();
 
+function getTwilioStatusCallbackUrl() {
+  const baseUrl = process.env.BASE_URL?.replace(/\/+$/, "");
+  if (!baseUrl) return null;
+  return `${baseUrl}/api/webhooks/twilio/message-status`;
+}
+
 // Alias kept for backwards-compatible read paths
 function decodeBody(enc) {
   return decryptBody(enc);
@@ -133,12 +139,15 @@ router.post("/", authenticate, async (req, res) => {
       const toNumber = e164;
       const bodyTrimmed = body.trim();
       let vendorMessageId = null;
-      let status = "sent";
+      let status = "queued";
 
       if (pn.provider_sid && process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN) {
         try {
-          const { sid } = await sendSms(fromNumber, toNumber, bodyTrimmed);
+          const { sid, status: providerStatus } = await sendSms(fromNumber, toNumber, bodyTrimmed, {
+            statusCallback: getTwilioStatusCallbackUrl(),
+          });
           vendorMessageId = sid;
+          status = providerStatus === "failed" || providerStatus === "undelivered" ? "failed" : "queued";
         } catch (twilioErr) {
           console.error("Twilio send failed:", twilioErr.message);
           status = "failed";
@@ -250,13 +259,16 @@ router.post("/:id/messages", authenticate, async (req, res) => {
     const bodyTrimmed = body.trim();
     const providerSid = conv.provider_sid;
 
-    let vendorMessageId = null;
-    let status = "sent";
+      let vendorMessageId = null;
+      let status = "queued";
 
     if (providerSid && process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN) {
       try {
-        const { sid } = await sendSms(fromNumber, toNumber, bodyTrimmed);
+          const { sid, status: providerStatus } = await sendSms(fromNumber, toNumber, bodyTrimmed, {
+            statusCallback: getTwilioStatusCallbackUrl(),
+          });
         vendorMessageId = sid;
+          status = providerStatus === "failed" || providerStatus === "undelivered" ? "failed" : "queued";
       } catch (twilioErr) {
         console.error("Twilio send failed:", twilioErr.message);
         status = "failed";

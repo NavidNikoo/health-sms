@@ -20,9 +20,36 @@ async function start() {
     contentSecurityPolicy: false, // handled by nginx in production
     hsts: { maxAge: 63072000, includeSubDomains: true },
   }));
+
+  // CORS: allow FRONTEND_ORIGIN (comma-separated in prod) plus common Vite dev ports.
+  // If Vite picks 5174 because 5173 is busy, requests from http://localhost:5174
+  // must be allowed or the browser shows "Failed to fetch" / "Cannot reach server".
+  const fromEnv = (process.env.FRONTEND_ORIGIN || "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const allowedOrigins = new Set([
+    ...fromEnv,
+    "http://localhost:5173",
+    "http://localhost:5174",
+    "http://127.0.0.1:5173",
+    "http://127.0.0.1:5174",
+  ]);
+
   app.use(
     cors({
-      origin: process.env.FRONTEND_ORIGIN || "http://localhost:5173",
+      origin(origin, callback) {
+        if (!origin) return callback(null, true); // curl, same-origin tools
+        if (allowedOrigins.has(origin)) return callback(null, true);
+        // Non-production: allow any localhost / 127.0.0.1 port (Vite may use 5175+)
+        if (
+          process.env.NODE_ENV !== "production" &&
+          /^https?:\/\/(localhost|127\.0\.0\.1):\d+$/.test(origin)
+        ) {
+          return callback(null, true);
+        }
+        callback(new Error("Not allowed by CORS"));
+      },
       credentials: true,
     })
   );

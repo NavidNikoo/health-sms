@@ -109,4 +109,44 @@ router.post("/twilio/sms", validateTwilioSignature("/api/webhooks/twilio/sms"), 
   }
 });
 
+router.post("/twilio/message-status", validateTwilioSignature("/api/webhooks/twilio/message-status"), async (req, res) => {
+  try {
+    const messageSid = req.body?.MessageSid?.trim();
+    const messageStatus = req.body?.MessageStatus?.trim()?.toLowerCase();
+    const errorCode = req.body?.ErrorCode?.trim() || null;
+
+    if (!messageSid || !messageStatus) {
+      return res.status(200).json({ ok: true });
+    }
+
+    const normalizedStatus =
+      messageStatus === "delivered"
+        ? "delivered"
+        : ["failed", "undelivered"].includes(messageStatus)
+          ? "failed"
+          : ["sent", "queued", "accepted", "sending", "scheduled"].includes(messageStatus)
+            ? "queued"
+            : null;
+
+    if (!normalizedStatus) {
+      return res.status(200).json({ ok: true });
+    }
+
+    await db.query(
+      `UPDATE messages
+       SET status = $1,
+           delivered_at = CASE WHEN $1 = 'delivered' THEN now() ELSE delivered_at END,
+           failed_at = CASE WHEN $1 = 'failed' THEN now() ELSE failed_at END,
+           error_code = COALESCE($2, error_code)
+       WHERE vendor_message_id = $3`,
+      [normalizedStatus, errorCode, messageSid]
+    );
+
+    res.status(200).json({ ok: true });
+  } catch (err) {
+    console.error("Message status webhook error:", err.message);
+    res.status(200).json({ ok: true });
+  }
+});
+
 module.exports = router;
