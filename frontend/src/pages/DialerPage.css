@@ -4,7 +4,7 @@
   align-items: center;
   padding: 40px 24px 60px;
   min-height: 100%;
-  background: #f9fafb;
+  background: var(--bg);
   gap: 16px;
 }
 
@@ -17,22 +17,22 @@
 .dialer-title {
   font-size: 24px;
   font-weight: 700;
-  color: #111827;
+  color: var(--text);
   margin: 0 0 4px;
 }
 
 .dialer-subtitle {
   font-size: 14px;
-  color: #6b7280;
+  color: var(--muted);
   margin: 0;
 }
 
 /* ── Dialer card ── */
 .dialer-card {
-  background: #fff;
+  background: var(--panel);
   border-radius: 16px;
-  border: 1px solid #e5e7eb;
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-md);
   width: 360px;
   max-width: 100%;
   padding: 24px;
@@ -51,57 +51,57 @@
 .dialer-from-label {
   font-size: 12px;
   font-weight: 500;
-  color: #6b7280;
+  color: var(--muted);
   text-transform: uppercase;
   letter-spacing: 0.06em;
 }
 
 .dialer-select {
   padding: 9px 12px;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--border-strong);
   border-radius: 8px;
   font-size: 14px;
   font-family: inherit;
-  background: #f9fafb;
-  color: #111827;
+  background: var(--panel2);
+  color: var(--text);
   outline: none;
   cursor: pointer;
-  transition: border-color 0.15s;
+  transition: border-color 0.15s, background 0.15s;
 }
-.dialer-select:focus   { border-color: #6366f1; background: #fff; }
+.dialer-select:focus   { border-color: var(--accent); background: var(--panel); }
 .dialer-select:disabled { opacity: 0.6; cursor: not-allowed; }
 
 .dialer-load-error {
   display: flex;
   align-items: center;
   gap: 10px;
-  background: #fef2f2;
-  border: 1px solid #fca5a5;
+  background: var(--dangerBg);
+  border: 1px solid var(--danger);
   border-radius: 8px;
   padding: 10px 14px;
   font-size: 13px;
-  color: #dc2626;
+  color: var(--danger-text);
 }
 
 .dialer-retry-btn {
   flex-shrink: 0;
   padding: 6px 14px;
   border-radius: 6px;
-  border: 1px solid #dc2626;
-  background: #fff;
-  color: #dc2626;
+  border: 1px solid var(--danger);
+  background: transparent;
+  color: var(--danger);
   font-size: 12px;
   font-weight: 600;
   font-family: inherit;
   cursor: pointer;
   transition: background 0.15s;
 }
-.dialer-retry-btn:hover { background: #fee2e2; }
+.dialer-retry-btn:hover { background: var(--dangerBg); }
 
 /* Divider */
 .dialer-divider {
   height: 1px;
-  background: #f3f4f6;
+  background: var(--border);
   margin: 0 -24px;
 }
 
@@ -110,8 +110,8 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: #f9fafb;
-  border: 1px solid #e5e7eb;
+  background: var(--panel2);
+  border: 1px solid var(--border);
   border-radius: 12px;
   padding: 14px 16px;
   min-height: 56px;
@@ -120,7 +120,7 @@
 .dialer-display-number {
   font-size: 22px;
   font-weight: 600;
-  color: #111827;
+  color: var(--text);
   letter-spacing: 0.04em;
   flex: 1;
 }
@@ -128,20 +128,20 @@
 .dialer-placeholder {
   font-size: 16px;
   font-weight: 400;
-  color: #9ca3af;
+  color: var(--subtle);
 }
 
 .dialer-backspace {
   background: none;
   border: none;
   font-size: 18px;
-  color: #9ca3af;
+  color: var(--subtle);
   cursor: pointer;
   padding: 4px 8px;
   border-radius: 6px;
   transition: color 0.15s, background 0.15s;
 }
-.dialer-backspace:hover { color: #374151; background: #f3f4f6; }
+.dialer-backspace:hover { color: var(--text); background: var(--panel3); }
 
 /* Dial pad */
 .dialer-pad { display: flex; flex-direction: column; gap: 8px; }
@@ -155,17 +155,17 @@
 .dialer-pad-btn {
   height: 54px;
   border-radius: 12px;
-  border: 1px solid #e5e7eb;
-  background: #f9fafb;
+  border: 1px solid var(--border);
+  background: var(--panel2);
   font-size: 18px;
   font-weight: 500;
-  color: #111827;
+  color: var(--text);
   cursor: pointer;
   font-family: inherit;
-  transition: background 0.1s, border-color 0.1s;
+  transition: background 0.1s, border-color 0.1s, transform 0.1s;
 }
-.dialer-pad-btn:hover  { background: #f3f4f6; border-color: #d1d5db; }
-.dialer-pad-btn:active { background: #e5e7eb; transform: scale(0.97); }
+.dialer-pad-btn:hover  { background: var(--panel3); border-color: var(--border-strong); }
+.dialer-pad-btn:active { background: var(--panel3); transform: scale(0.97); }
 
 /* Call button */
 .dialer-actions {
@@ -199,23 +199,23 @@
   align-items: center;
   gap: 10px;
   padding: 18px 16px;
-  background: #f0fdf4;
-  border: 1px solid #86efac;
+  background: var(--success-soft);
+  border: 1px solid var(--success);
   border-radius: 12px;
   text-align: center;
 }
 
 .dialer-active-call-ringing {
-  background: #eff6ff;
-  border-color: #93c5fd;
+  background: var(--info-soft);
+  border-color: var(--info-text);
 }
 
 .dialer-ringing-icon {
   width: 48px;
   height: 48px;
   border-radius: 999px;
-  background: #d1fae5;
-  color: #059669;
+  background: var(--success-soft);
+  color: var(--success);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -223,8 +223,8 @@
 }
 
 .dialer-active-call-ringing .dialer-ringing-icon {
-  background: #dbeafe;
-  color: #2563eb;
+  background: var(--info-soft);
+  color: var(--info-text);
 }
 
 @keyframes phone-ring {
@@ -237,56 +237,56 @@
 }
 .dialer-ringing-anim { animation: phone-ring 1s ease-in-out infinite; }
 
-.dialer-active-text    { font-size: 14px; font-weight: 600; color: #111827; }
-.dialer-active-subtext { font-size: 12px; color: #6b7280; margin-top: 2px; }
+.dialer-active-text    { font-size: 14px; font-weight: 600; color: var(--text); }
+.dialer-active-subtext { font-size: 12px; color: var(--muted); margin-top: 2px; }
 
 .dialer-active-btns { display: flex; gap: 8px; margin-top: 4px; }
 
 .dialer-cancel-call-btn {
   padding: 7px 16px;
   border-radius: 8px;
-  border: 1px solid #fca5a5;
-  background: #fef2f2;
-  color: #dc2626;
+  border: 1px solid var(--danger);
+  background: var(--dangerBg);
+  color: var(--danger-text);
   font-size: 13px;
   font-weight: 500;
   font-family: inherit;
   cursor: pointer;
-  transition: background 0.15s;
+  transition: filter 0.15s;
 }
-.dialer-cancel-call-btn:hover { background: #fee2e2; }
+.dialer-cancel-call-btn:hover { filter: brightness(1.05); }
 
 .dialer-done-btn {
   padding: 7px 16px;
   border-radius: 8px;
-  border: 1px solid #d1d5db;
-  background: #fff;
-  color: #374151;
+  border: 1px solid var(--border-strong);
+  background: var(--panel);
+  color: var(--text);
   font-size: 13px;
   font-weight: 500;
   font-family: inherit;
   cursor: pointer;
 }
-.dialer-done-btn:hover { background: #f9fafb; }
+.dialer-done-btn:hover { background: var(--panel2); }
 
 .dialer-error {
-  background: #fef2f2;
-  border: 1px solid #fca5a5;
+  background: var(--dangerBg);
+  border: 1px solid var(--danger);
   border-radius: 8px;
   padding: 10px 14px;
   font-size: 13px;
-  color: #dc2626;
+  color: var(--danger-text);
   text-align: center;
 }
 
 .dialer-inline-hint {
   margin-top: 4px;
-  background: #eff6ff;
-  border: 1px solid #bfdbfe;
+  background: var(--info-soft);
+  border: 1px solid var(--info-text);
   border-radius: 8px;
   padding: 10px 12px;
   font-size: 12px;
-  color: #1e3a8a;
+  color: var(--info-text);
   text-align: center;
 }
 
@@ -295,10 +295,10 @@
    ══════════════════════════════════════════════════════════════════ */
 
 .cs-card {
-  background: #fff;
+  background: var(--panel);
   border-radius: 16px;
-  border: 1px solid #e5e7eb;
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-md);
   width: 360px;
   max-width: 100%;
   padding: 24px;
@@ -315,12 +315,12 @@
   gap: 7px;
   font-size: 14px;
   font-weight: 700;
-  color: #111827;
+  color: var(--text);
 }
 
 .cs-card-subtitle {
   font-size: 13px;
-  color: #6b7280;
+  color: var(--muted);
   line-height: 1.4;
 }
 
@@ -339,8 +339,8 @@
   gap: 8px;
   padding: 16px 10px 14px;
   border-radius: 12px;
-  border: 1.5px solid #e5e7eb;
-  background: #fff;
+  border: 1.5px solid var(--border);
+  background: var(--panel);
   cursor: pointer;
   text-align: center;
   font-family: inherit;
@@ -348,14 +348,14 @@
 }
 
 .cs-mode-tile:hover:not(.cs-mode-tile-soon):not(.cs-mode-tile-active) {
-  border-color: #c7d2fe;
-  background: #fafafa;
+  border-color: var(--border-strong);
+  background: var(--panel2);
 }
 
 .cs-mode-tile-active {
-  border-color: #6366f1;
-  background: #eef2ff;
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  box-shadow: var(--ring);
 }
 
 .cs-mode-tile-soon {
@@ -369,7 +369,7 @@
   position: absolute;
   top: 6px;
   right: 8px;
-  color: #6366f1;
+  color: var(--accent);
   display: flex;
   align-items: center;
 }
@@ -379,8 +379,8 @@
   position: absolute;
   top: 6px;
   right: 6px;
-  background: #e0e7ff;
-  color: #4338ca;
+  background: var(--accent-soft);
+  color: var(--accent-text);
   font-size: 10px;
   font-weight: 700;
   padding: 2px 6px;
@@ -393,8 +393,8 @@
   width: 44px;
   height: 44px;
   border-radius: 12px;
-  background: #f3f4f6;
-  color: #6b7280;
+  background: var(--panel2);
+  color: var(--muted);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -402,23 +402,23 @@
 }
 
 .cs-mode-icon-active {
-  background: #e0e7ff;
-  color: #4f46e5;
+  background: var(--accent-soft);
+  color: var(--accent);
 }
 
-.cs-mode-icon-soon { background: #f3f4f6; color: #9ca3af; }
+.cs-mode-icon-soon { background: var(--panel2); color: var(--subtle); }
 
 .cs-mode-name {
   font-size: 13px;
   font-weight: 600;
-  color: #111827;
+  color: var(--text);
 }
 
-.cs-mode-tile-soon .cs-mode-name { color: #9ca3af; }
+.cs-mode-tile-soon .cs-mode-name { color: var(--subtle); }
 
 .cs-mode-desc {
   font-size: 11px;
-  color: #9ca3af;
+  color: var(--subtle);
   line-height: 1.3;
 }
 
@@ -438,41 +438,41 @@
 .cs-forward-label {
   font-size: 13px;
   font-weight: 500;
-  color: #374151;
+  color: var(--text);
 }
 
 .cs-forward-input {
   padding: 10px 14px;
-  border: 1.5px solid #d1d5db;
+  border: 1.5px solid var(--border-strong);
   border-radius: 10px;
   font-size: 14px;
   font-family: inherit;
-  color: #111827;
-  background: #fff;
+  color: var(--text);
+  background: var(--panel);
   outline: none;
-  transition: border-color 0.15s;
+  transition: border-color 0.15s, box-shadow 0.15s;
 }
-.cs-forward-input:focus   { border-color: #6366f1; }
+.cs-forward-input:focus   { border-color: var(--accent); box-shadow: var(--ring); }
 .cs-forward-input:disabled { opacity: 0.6; cursor: not-allowed; }
 
 .cs-forward-add-btn {
   padding: 0 14px;
   border-radius: 10px;
-  border: 1px solid #c7d2fe;
-  background: #eef2ff;
-  color: #4338ca;
+  border: 1px solid var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-text);
   font-size: 13px;
   font-weight: 600;
   font-family: inherit;
   cursor: pointer;
   transition: background 0.15s, opacity 0.15s;
 }
-.cs-forward-add-btn:hover:not(:disabled) { background: #e0e7ff; }
+.cs-forward-add-btn:hover:not(:disabled) { background: var(--accent); color: #fff; }
 .cs-forward-add-btn:disabled { opacity: 0.55; cursor: not-allowed; }
 
 .cs-forward-hint {
   font-size: 12px;
-  color: #9ca3af;
+  color: var(--subtle);
   margin: 0;
   line-height: 1.45;
 }
@@ -480,15 +480,15 @@
 /* ── Voicemail note ── */
 .cs-voicemail-note {
   font-size: 13px;
-  color: #6b7280;
-  background: #f9fafb;
-  border: 1px solid #e5e7eb;
+  color: var(--muted);
+  background: var(--panel2);
+  border: 1px solid var(--border);
   border-radius: 8px;
   padding: 12px 14px;
   margin: 0;
   line-height: 1.5;
 }
-.cs-voicemail-note em { color: #374151; font-style: italic; }
+.cs-voicemail-note em { color: var(--text); font-style: italic; }
 
 /* ── Footer ── */
 .cs-footer {
@@ -503,15 +503,15 @@
   font-size: 13px;
   font-weight: 500;
 }
-.cs-save-msg-ok  { color: #059669; }
-.cs-save-msg-err { color: #dc2626; }
+.cs-save-msg-ok  { color: var(--success); }
+.cs-save-msg-err { color: var(--danger); }
 
 .cs-save-btn {
   margin-left: auto;
   padding: 10px 22px;
   border-radius: 10px;
   border: none;
-  background: #111827;
+  background: var(--accent);
   color: #fff;
   font-size: 14px;
   font-weight: 500;
@@ -520,7 +520,7 @@
   transition: background 0.15s, opacity 0.15s;
   white-space: nowrap;
 }
-.cs-save-btn:hover:not(:disabled) { background: #000; }
+.cs-save-btn:hover:not(:disabled) { background: var(--accent-hover); }
 .cs-save-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
 /* ── Responsive ── */

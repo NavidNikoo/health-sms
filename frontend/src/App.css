@@ -1,17 +1,89 @@
+.app-root {
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--text);
+}
+
+/* ─── Light theme (default) ─────────────────────────────────────────── */
+:root {
+  --bg: #f5f7fb;
+  --panel: #ffffff;
+  --panel2: #f1f5f9;
+  --panel3: #e2e8f0;
+  --text: #0f172a;
+  --muted: #64748b;
+  --subtle: #94a3b8;
+  --border: #e2e8f0;
+  --border-strong: #cbd5e1;
+  --accent: #6366f1;
+  --accent-hover: #4f46e5;
+  --accent2: #7c3aed;
+  --accent-soft: rgba(99, 102, 241, 0.1);
+  --accent-text: #4338ca;
+  --danger: #dc2626;
+  --danger-text: #b91c1c;
+  --dangerBg: #fef2f2;
+  --success: #059669;
+  --success-soft: #d1fae5;
+  --warn: #d97706;
+  --warn-soft: #fef3c7;
+  --info-soft: #dbeafe;
+  --info-text: #1d4ed8;
+  --sidebar-bg: #f1f5f9;
+  --sidebar-border: #e2e8f0;
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.05);
+  --shadow-md: 0 1px 3px rgba(15, 23, 42, 0.06), 0 4px 16px rgba(15, 23, 42, 0.05);
+  --shadow-lg: 0 8px 28px rgba(15, 23, 42, 0.1);
+  --ring: 0 0 0 3px rgba(99, 102, 241, 0.18);
+}
+
+/* ─── Dark theme — softer slate, with real elevation ────────────────── */
+[data-theme="dark"] {
+  --bg: #131c2e;
+  --panel: #1b2742;
+  --panel2: #243254;
+  --panel3: #2f3f6a;
+  --text: #e8eef9;
+  --muted: #93a2bf;
+  --subtle: #6b7894;
+  --border: #2a3552;
+  --border-strong: #3e4d72;
+  --accent: #818cf8;
+  --accent-hover: #6366f1;
+  --accent2: #a78bfa;
+  --accent-soft: rgba(129, 140, 248, 0.16);
+  --accent-text: #c7d2fe;
+  --danger: #f87171;
+  --danger-text: #fca5a5;
+  --dangerBg: rgba(127, 29, 29, 0.35);
+  --success: #34d399;
+  --success-soft: rgba(16, 185, 129, 0.16);
+  --warn: #fbbf24;
+  --warn-soft: rgba(251, 191, 36, 0.18);
+  --info-soft: rgba(96, 165, 250, 0.18);
+  --info-text: #93c5fd;
+  --sidebar-bg: #0f1729;
+  --sidebar-border: #1e2a47;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.45);
+  --shadow-md: 0 1px 2px rgba(0, 0, 0, 0.4), 0 6px 18px rgba(0, 0, 0, 0.35);
+  --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.45);
+  --ring: 0 0 0 3px rgba(129, 140, 248, 0.25);
+}
+
 .app-loading {
   min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: #f3f4f6;
+  background-color: var(--bg);
 }
 
 .app-loading-spinner {
   width: 34px;
   height: 34px;
   border-radius: 999px;
-  border: 3px solid #e5e7eb;
-  border-top-color: #111827;
+  border: 3px solid var(--border);
+  border-top-color: var(--accent);
   animation: app-spin 0.9s linear infinite;
 }
 
@@ -20,4 +92,3 @@
     transform: rotate(360deg);
   }
 }
-

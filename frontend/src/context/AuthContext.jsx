@@ -50,6 +50,12 @@ export function AuthProvider({ children }) {
     window.localStorage.removeItem("authToken");
   };
 
+  const setSession = ({ user: nextUser, token: nextToken }) => {
+    setUser(nextUser);
+    setToken(nextToken);
+    window.localStorage.setItem("authToken", nextToken);
+  };
+
   const value = {
     user,
     token,
@@ -58,6 +64,7 @@ export function AuthProvider({ children }) {
     login: handleLogin,
     signup: handleSignup,
     logout,
+    setSession,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

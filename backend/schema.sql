@@ -82,6 +82,8 @@ CREATE TABLE conversations (
   patient_id      UUID NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
   phone_number_id UUID NOT NULL REFERENCES phone_numbers(id) ON DELETE RESTRICT,
   status          TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'closed')),
+  assigned_to_user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+  assigned_at     TIMESTAMPTZ,
   last_message_at TIMESTAMPTZ,
   created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -102,6 +104,17 @@ CREATE TABLE messages (
   failed_at         TIMESTAMPTZ,
   error_code        TEXT,
   created_at        TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- Internal clinic notes (not sent to patients; encrypted at app layer)
+CREATE TABLE conversation_internal_notes (
+  id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id              UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  conversation_id     UUID NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+  created_by_user_id  UUID REFERENCES users(id) ON DELETE SET NULL,
+  body_encrypted      TEXT NOT NULL,
+  mentioned_user_ids  UUID[] NOT NULL DEFAULT '{}',
+  created_at          TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 -- Message templates
@@ -154,6 +167,8 @@ CREATE TABLE audit_logs (
 
 -- Indexes for common queries
 CREATE INDEX idx_messages_conversation_created ON messages (conversation_id, created_at DESC);
+CREATE INDEX idx_internal_notes_conversation_created ON conversation_internal_notes (conversation_id, created_at DESC);
+CREATE INDEX idx_internal_notes_mentions ON conversation_internal_notes USING GIN (mentioned_user_ids);
 CREATE INDEX idx_audit_logs_org_created ON audit_logs (org_id, created_at DESC);
 CREATE INDEX idx_conversations_org_last_message ON conversations (org_id, last_message_at DESC NULLS LAST);
 CREATE INDEX idx_patients_org ON patients (org_id);

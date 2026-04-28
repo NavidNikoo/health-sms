@@ -15,13 +15,13 @@
 .np-title {
   font-size: 24px;
   font-weight: 700;
-  color: #111827;
+  color: var(--text);
   margin: 0 0 4px;
 }
 
 .np-subtitle {
   font-size: 14px;
-  color: #6b7280;
+  color: var(--muted);
   margin: 0;
 }
 
@@ -40,14 +40,14 @@
 .np-section-title {
   font-size: 15px;
   font-weight: 600;
-  color: #374151;
+  color: var(--text);
   margin: 0;
 }
 
 .np-help-blurb {
   margin: 0 0 12px;
   font-size: 13px;
-  color: #6b7280;
+  color: var(--muted);
   line-height: 1.5;
 }
 
@@ -59,8 +59,8 @@
   height: 22px;
   padding: 0 7px;
   border-radius: 999px;
-  background: #f3f4f6;
-  color: #6b7280;
+  background: var(--panel2);
+  color: var(--muted);
   font-size: 12px;
   font-weight: 600;
 }
@@ -69,10 +69,11 @@
 .np-number-list {
   display: flex;
   flex-direction: column;
-  background: #fff;
-  border: 1px solid #e5e7eb;
+  background: var(--panel);
+  border: 1px solid var(--border);
   border-radius: 12px;
   overflow: hidden;
+  box-shadow: var(--shadow-sm);
 }
 
 .np-number-row {
@@ -80,7 +81,7 @@
   align-items: center;
   gap: 16px;
   padding: 16px 20px;
-  border-bottom: 1px solid #f3f4f6;
+  border-bottom: 1px solid var(--border);
   transition: background 0.12s;
 }
 
@@ -89,7 +90,7 @@
 }
 
 .np-number-row:hover {
-  background: #fafbfc;
+  background: var(--panel2);
 }
 
 .np-number-info {
@@ -100,12 +101,12 @@
 .np-number-value {
   font-size: 15px;
   font-weight: 600;
-  color: #111827;
+  color: var(--text);
 }
 
 .np-number-label {
   font-size: 13px;
-  color: #6b7280;
+  color: var(--muted);
   margin-top: 2px;
 }
 
@@ -118,8 +119,8 @@
 
 .np-number-fwd {
   font-size: 12px;
-  color: #6b7280;
-  background: #f3f4f6;
+  color: var(--muted);
+  background: var(--panel2);
   padding: 3px 8px;
   border-radius: 6px;
 }
@@ -133,14 +134,14 @@
   border-radius: 8px;
   border: none;
   background: transparent;
-  color: #9ca3af;
+  color: var(--subtle);
   cursor: pointer;
   transition: all 0.12s;
 }
 
 .np-number-delete:hover {
-  background: #fef2f2;
-  color: #ef4444;
+  background: var(--dangerBg);
+  color: var(--danger);
 }
 
 .np-number-delete:disabled {
@@ -161,23 +162,23 @@
 }
 
 .np-badge-green {
-  background: #d1fae5;
-  color: #065f46;
+  background: var(--success-soft);
+  color: var(--success);
 }
 
 .np-badge-yellow {
-  background: #fef3c7;
-  color: #92400e;
+  background: var(--warn-soft);
+  color: var(--warn);
 }
 
 .np-badge-red {
-  background: #fef2f2;
-  color: #991b1b;
+  background: var(--dangerBg);
+  color: var(--danger);
 }
 
 .np-badge-gray {
-  background: #f3f4f6;
-  color: #6b7280;
+  background: var(--panel2);
+  color: var(--muted);
 }
 
 /* ── Empty state ───────────────────────────────────────────────────────── */
@@ -187,8 +188,8 @@
   align-items: center;
   justify-content: center;
   padding: 48px 20px;
-  background: #fff;
-  border: 1px solid #e5e7eb;
+  background: var(--panel);
+  border: 1px solid var(--border);
   border-radius: 12px;
   text-align: center;
 }
@@ -196,18 +197,19 @@
 .np-empty-icon {
   margin-bottom: 12px;
   opacity: 0.5;
+  color: var(--subtle);
 }
 
 .np-empty-title {
   font-size: 15px;
   font-weight: 600;
-  color: #374151;
+  color: var(--text);
   margin: 0 0 4px;
 }
 
 .np-empty-desc {
   font-size: 13px;
-  color: #9ca3af;
+  color: var(--subtle);
   margin: 0;
   max-width: 300px;
 }
@@ -215,8 +217,8 @@
 .np-spinner {
   width: 24px;
   height: 24px;
-  border: 3px solid #e5e7eb;
-  border-top-color: #6366f1;
+  border: 3px solid var(--border);
+  border-top-color: var(--accent);
   border-radius: 50%;
   animation: np-spin 0.7s linear infinite;
   margin-bottom: 12px;
@@ -228,10 +230,11 @@
 
 /* ── Compliance section ────────────────────────────────────────────────── */
 .np-compliance {
-  background: #fff;
-  border: 1px solid #e5e7eb;
+  background: var(--panel);
+  border: 1px solid var(--border);
   border-radius: 12px;
   overflow: hidden;
+  box-shadow: var(--shadow-sm);
 }
 
 .np-compliance-header {
@@ -252,7 +255,8 @@
   width: 40px;
   height: 40px;
   border-radius: 10px;
-  background: #fef3c7;
+  background: var(--warn-soft);
+  color: var(--warn);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -260,18 +264,19 @@
 }
 
 .np-compliance-icon-ok {
-  background: #d1fae5;
+  background: var(--success-soft);
+  color: var(--success);
 }
 
 .np-compliance-title {
   font-size: 15px;
   font-weight: 600;
-  color: #111827;
+  color: var(--text);
 }
 
 .np-compliance-desc {
   font-size: 13px;
-  color: #6b7280;
+  color: var(--muted);
   margin-top: 2px;
 }
 
@@ -286,7 +291,7 @@
 
 .np-compliance-status-item {
   font-size: 12px;
-  color: #6b7280;
+  color: var(--muted);
   display: flex;
   align-items: center;
   gap: 6px;
@@ -295,12 +300,12 @@
 /* ── Compliance form ───────────────────────────────────────────────────── */
 .np-compliance-form {
   padding: 0 24px 24px;
-  border-top: 1px solid #f3f4f6;
+  border-top: 1px solid var(--border);
 }
 
 .np-compliance-form-intro {
   font-size: 13px;
-  color: #6b7280;
+  color: var(--muted);
   line-height: 1.6;
   margin: 16px 0 20px;
 }
@@ -317,7 +322,7 @@
   gap: 5px;
   font-size: 13px;
   font-weight: 500;
-  color: #374151;
+  color: var(--text);
 }
 
 .np-form-full {
@@ -330,18 +335,18 @@
 
 .np-form-input {
   padding: 9px 12px;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--border-strong);
   border-radius: 8px;
   font-size: 14px;
-  color: #111827;
-  background: #fff;
-  transition: border-color 0.15s;
+  color: var(--text);
+  background: var(--panel);
+  transition: border-color 0.15s, box-shadow 0.15s;
 }
 
 .np-form-input:focus {
   outline: none;
-  border-color: #6366f1;
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+  border-color: var(--accent);
+  box-shadow: var(--ring);
 }
 
 .np-form-textarea {
@@ -353,10 +358,10 @@
 .np-form-error {
   margin-top: 12px;
   padding: 10px 14px;
-  background: #fef2f2;
-  border: 1px solid #fecaca;
+  background: var(--dangerBg);
+  border: 1px solid var(--danger);
   border-radius: 8px;
-  color: #991b1b;
+  color: var(--danger-text);
   font-size: 13px;
 }
 
@@ -372,7 +377,7 @@
   padding: 9px 18px;
   border-radius: 8px;
   border: none;
-  background: #6366f1;
+  background: var(--accent);
   color: #fff;
   font-size: 14px;
   font-weight: 500;
@@ -381,20 +386,20 @@
 }
 
 .np-btn-primary:hover {
-  background: #4f46e5;
+  background: var(--accent-hover);
 }
 
 .np-btn-primary:disabled {
-  background: #a5b4fc;
+  opacity: 0.55;
   cursor: default;
 }
 
 .np-btn-outline {
   padding: 8px 16px;
   border-radius: 8px;
-  border: 1px solid #d1d5db;
-  background: #fff;
-  color: #374151;
+  border: 1px solid var(--border-strong);
+  background: var(--panel);
+  color: var(--text);
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
@@ -402,8 +407,8 @@
 }
 
 .np-btn-outline:hover {
-  border-color: #6366f1;
-  color: #6366f1;
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 .np-btn-ghost {
@@ -411,19 +416,19 @@
   border-radius: 8px;
   border: none;
   background: transparent;
-  color: #6b7280;
+  color: var(--muted);
   font-size: 14px;
   cursor: pointer;
 }
 
 .np-btn-ghost:hover {
-  color: #111827;
-  background: #f3f4f6;
+  color: var(--text);
+  background: var(--panel2);
 }
 
 .np-debug-card {
-  background: #fff;
-  border: 1px solid #e5e7eb;
+  background: var(--panel);
+  border: 1px solid var(--border);
   border-radius: 12px;
   padding: 16px;
 }
@@ -434,13 +439,13 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px 14px;
   font-size: 13px;
-  color: #374151;
+  color: var(--text);
 }
 
 .np-debug-note {
   margin-top: 8px;
   font-size: 13px;
-  color: #6b7280;
+  color: var(--muted);
 }
 
 @media (max-width: 640px) {

@@ -130,6 +130,30 @@ export async function sendMessage(token, conversationId, body) {
   return res.json();
 }
 
+export async function getInternalNotes(token, conversationId) {
+  const res = await fetch(`${API_BASE}/conversations/${conversationId}/internal-notes`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) {
+    const d = await res.json().catch(() => ({}));
+    throw new Error(d.message || "Failed to fetch internal notes");
+  }
+  return res.json();
+}
+
+export async function createInternalNote(token, conversationId, body) {
+  const res = await fetch(`${API_BASE}/conversations/${conversationId}/internal-notes`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ body }),
+  });
+  if (!res.ok) {
+    const d = await res.json().catch(() => ({}));
+    throw new Error(d.message || "Failed to create internal note");
+  }
+  return res.json();
+}
+
 export async function createConversation(token, { phoneNumber, phoneNumberId, body, patientName }) {
   const res = await fetch(`${API_BASE}/conversations`, {
     method: "POST",
@@ -445,4 +469,159 @@ export async function cancelCall(token, callSid) {
   }
   return res.json();
 }
+
+// ── Org Users ──
+
+export async function getOrgUsers(token) {
+  const res = await fetch(`${API_BASE}/users/org`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) {
+    const d = await res.json().catch(() => ({}));
+    throw new Error(d.message || "Failed to fetch org users");
+  }
+  return res.json();
+}
+
+export async function removeOrgUser(token, userId) {
+  const res = await fetch(`${API_BASE}/users/org/${userId}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) {
+    const d = await res.json().catch(() => ({}));
+    throw new Error(d.message || "Failed to remove user");
+  }
+  return res.json();
+}
+
+// ── Org Invites (admin-only create/list/revoke, public accept) ──
+
+export async function createOrgInvite(token, { email, role }) {
+  const res = await fetch(`${API_BASE}/users/invites`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ email, role }),
+  });
+  if (!res.ok) {
+    const d = await res.json().catch(() => ({}));
+    throw new Error(d.message || "Failed to create invite");
+  }
+  return res.json();
+}
+
+export async function getOrgInvites(token) {
+  const res = await fetch(`${API_BASE}/users/invites`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) {
+    const d = await res.json().catch(() => ({}));
+    throw new Error(d.message || "Failed to load invites");
+  }
+  return res.json();
+}
+
+export async function revokeOrgInvite(token, id) {
+  const res = await fetch(`${API_BASE}/users/invites/${id}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) {
+    const d = await res.json().catch(() => ({}));
+    throw new Error(d.message || "Failed to revoke invite");
+  }
+  return res.json();
+}
+
+export async function getInvitePreview(inviteToken) {
+  const res = await fetch(`${API_BASE}/auth/invites/${encodeURIComponent(inviteToken)}`);
+  if (!res.ok) {
+    const d = await res.json().catch(() => ({}));
+    throw new Error(d.message || "Invalid invite");
+  }
+  return res.json();
+}
+
+export async function getMyInvites(token) {
+  const res = await fetch(`${API_BASE}/users/my-invites`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) {
+    const d = await res.json().catch(() => ({}));
+    throw new Error(d.message || "Failed to load invites");
+  }
+  return res.json();
+}
+
+export async function acceptMyInvite(token, id) {
+  const res = await fetch(`${API_BASE}/users/my-invites/${id}/accept`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) {
+    const d = await res.json().catch(() => ({}));
+    throw new Error(d.message || "Failed to accept invite");
+  }
+  return res.json();
+}
+
+export async function declineMyInvite(token, id) {
+  const res = await fetch(`${API_BASE}/users/my-invites/${id}/decline`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) {
+    const d = await res.json().catch(() => ({}));
+    throw new Error(d.message || "Failed to decline invite");
+  }
+  return res.json();
+}
+
+export async function acceptInvite({ token, password }) {
+  const res = await fetch(`${API_BASE}/auth/accept-invite`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ token, password }),
+  });
+  if (!res.ok) {
+    const d = await res.json().catch(() => ({}));
+    throw new Error(d.message || "Failed to accept invite");
+  }
+  return res.json();
+}
+
+// ── Team Chat (internal user-to-user messages) ──
+
+async function dmFetch(token, path, opts = {}) {
+  const res = await fetch(`${API_BASE}/user-messages${path}`, {
+    ...opts,
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json", ...opts.headers },
+  });
+  if (!res.ok) {
+    const d = await res.json().catch(() => ({}));
+    throw new Error(d.message || "Request failed");
+  }
+  return res.json();
+}
+
+export const getDMProfile = (token) => dmFetch(token, "/profile/me");
+export const updateDMProfile = (token, data) => dmFetch(token, "/profile/me", { method: "PATCH", body: JSON.stringify(data) });
+export const resolveUser = (token, id) => dmFetch(token, `/resolve/${encodeURIComponent(id)}`);
+
+export const sendDMRequest = (token, handleOrId) => dmFetch(token, "/requests", { method: "POST", body: JSON.stringify({ handleOrId }) });
+export const getIncomingRequests = (token) => dmFetch(token, "/requests/incoming");
+export const getOutgoingRequests = (token) => dmFetch(token, "/requests/outgoing");
+export const acceptDMRequest = (token, id) => dmFetch(token, `/requests/${id}/accept`, { method: "POST" });
+export const declineDMRequest = (token, id) => dmFetch(token, `/requests/${id}/decline`, { method: "POST" });
+export const blockDMRequest = (token, id) => dmFetch(token, `/requests/${id}/block`, { method: "POST" });
+export const cancelDMRequest = (token, id) => dmFetch(token, `/requests/${id}/cancel`, { method: "POST" });
+
+export const getDMThreads = (token) => dmFetch(token, "/threads");
+export const getDMMessages = (token, threadId) => dmFetch(token, `/threads/${threadId}/messages`);
+export const sendDMMessage = (token, threadId, body) => dmFetch(token, `/threads/${threadId}/messages`, { method: "POST", body: JSON.stringify({ body }) });
+export const markDMThreadRead = (token, threadId) => dmFetch(token, `/threads/${threadId}/read`, { method: "POST" });
+
+export const getDMBlocks = (token) => dmFetch(token, "/blocks");
+export const createDMBlock = (token, userId) => dmFetch(token, "/blocks", { method: "POST", body: JSON.stringify({ userId }) });
+export const removeDMBlock = (token, userId) => dmFetch(token, `/blocks/${userId}`, { method: "DELETE" });
 

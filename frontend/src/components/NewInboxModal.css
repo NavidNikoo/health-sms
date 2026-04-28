@@ -1,9 +1,11 @@
 .ni-container {
-  background: #fff;
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--border);
   border-radius: 12px;
   width: 500px;
   max-width: 94vw;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+  box-shadow: var(--shadow-lg);
   overflow: hidden;
 }
 
@@ -18,22 +20,22 @@
 .ni-step {
   font-size: 12px;
   font-weight: 500;
-  color: #9ca3af;
+  color: var(--subtle);
 }
 
 .ni-step-active {
-  color: #6366f1;
+  color: var(--accent);
 }
 
 .ni-step-sep {
   font-size: 12px;
-  color: #d1d5db;
+  color: var(--border-strong);
 }
 
 /* Intro text */
 .ni-intro {
   font-size: 13px;
-  color: #6b7280;
+  color: var(--muted);
   margin: 0;
   line-height: 1.5;
 }
@@ -63,9 +65,10 @@
   align-items: center;
   justify-content: space-between;
   padding: 12px 16px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--border);
   border-radius: 10px;
-  background: #fff;
+  background: var(--panel);
+  color: var(--text);
   cursor: pointer;
   text-align: left;
   font-family: inherit;
@@ -73,25 +76,25 @@
 }
 
 .ni-result-item:hover {
-  background: #f9fafb;
-  border-color: #6366f1;
+  background: var(--panel2);
+  border-color: var(--accent);
 }
 
 .ni-result-number {
   font-size: 15px;
   font-weight: 600;
-  color: #111827;
+  color: var(--text);
 }
 
 .ni-result-location {
   font-size: 12px;
-  color: #6b7280;
+  color: var(--muted);
 }
 
 /* Selected number display */
 .ni-selected-number {
-  background: #f0fdf4;
-  border: 1px solid #86efac;
+  background: var(--success-soft);
+  border: 1px solid var(--success);
   border-radius: 10px;
   padding: 14px 16px;
 }
@@ -100,7 +103,7 @@
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.07em;
-  color: #16a34a;
+  color: var(--success);
   font-weight: 600;
   margin-bottom: 4px;
 }
@@ -108,19 +111,19 @@
 .ni-selected-value {
   font-size: 18px;
   font-weight: 700;
-  color: #14532d;
+  color: var(--text);
 }
 
 .ni-selected-location {
   font-size: 12px;
-  color: #15803d;
+  color: var(--muted);
   margin-top: 2px;
 }
 
 /* Hint text */
 .ni-hint {
   font-size: 12px;
-  color: #9ca3af;
+  color: var(--subtle);
   font-weight: 400;
   margin-top: 2px;
   line-height: 1.4;

@@ -2,8 +2,9 @@
   display: flex;
   flex-direction: column;
   width: 260px;
-  background-color: #111827;
-  color: #f9fafb;
+  background-color: var(--sidebar-bg);
+  border-right: 1px solid var(--sidebar-border);
+  color: var(--text);
   padding: 16px 12px;
   box-sizing: border-box;
 }
@@ -19,7 +20,7 @@
   width: 20px;
   height: 20px;
   border-radius: 6px;
-  background: linear-gradient(135deg, #6366f1, #ec4899);
+  background: linear-gradient(135deg, var(--accent), #ec4899);
 }
 
 .sidebar-logo-text {
@@ -48,7 +49,7 @@
   font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: #9ca3af;
+  color: var(--muted);
 }
 
 .sidebar-item {
@@ -60,18 +61,19 @@
   border-radius: 8px;
   border: none;
   background: transparent;
-  color: inherit;
+  color: var(--text);
   font: inherit;
   cursor: pointer;
   transition: background-color 0.15s ease, color 0.15s ease;
 }
 
 .sidebar-item:hover {
-  background-color: #1f2937;
+  background-color: var(--panel2);
 }
 
 .sidebar-item-active {
-  background-color: #1f2937;
+  background-color: var(--accent-soft);
+  color: var(--accent-text);
 }
 
 .sidebar-item-left {
@@ -84,12 +86,12 @@
   width: 8px;
   height: 8px;
   border-radius: 999px;
-  background-color: #10b981;
+  background-color: var(--success);
 }
 
 .sidebar-empty {
   font-size: 13px;
-  color: #9ca3af;
+  color: var(--muted);
   padding: 8px 10px;
 }
 
@@ -104,8 +106,8 @@
 }
 
 .sidebar-inbox-item-active {
-  background-color: #111827;
-  border: 1px solid #4b5563;
+  background-color: var(--accent-soft);
+  color: var(--accent-text);
 }
 
 .sidebar-inbox-label {
@@ -114,7 +116,7 @@
 }
 
 .sidebar-inbox-item-unread .sidebar-inbox-label {
-  color: #f9fafb;
+  color: var(--text);
   font-weight: 600;
 }
 
@@ -134,7 +136,7 @@
   height: 18px;
   padding: 0 6px;
   border-radius: 999px;
-  background: linear-gradient(135deg, #6366f1, #818cf8);
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
   color: #fff;
   font-size: 11px;
   font-weight: 700;
@@ -151,7 +153,7 @@
   width: 16px;
   height: 16px;
   border-radius: 999px;
-  background-color: #4b5563;
+  background-color: var(--subtle);
   margin-right: 6px;
 }
 
@@ -161,27 +163,30 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #9ca3af;
+  color: var(--muted);
   flex-shrink: 0;
 }
 
 .sidebar-item-active .sidebar-nav-icon {
-  color: #f9fafb;
+  color: var(--accent);
 }
 
 .sidebar-add-inbox {
   padding: 8px 10px;
   border-radius: 8px;
-  border: 1px dashed #4b5563;
+  border: 1px dashed var(--border-strong);
   background: transparent;
-  color: #e5e7eb;
+  color: var(--muted);
   font: inherit;
   cursor: pointer;
   margin-top: 8px;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
 }
 
 .sidebar-add-inbox:hover {
-  background-color: #1f2937;
+  background-color: var(--panel2);
+  color: var(--text);
+  border-color: var(--accent);
 }
 
 .sidebar-user {
@@ -190,7 +195,8 @@
   gap: 8px;
   padding: 10px;
   border-radius: 10px;
-  background-color: #020617;
+  background-color: var(--panel);
+  border: 1px solid var(--border);
   margin-top: 16px;
 }
 
@@ -198,26 +204,53 @@
   width: 32px;
   height: 32px;
   border-radius: 999px;
-  background: linear-gradient(135deg, #6366f1, #ec4899);
+  background: linear-gradient(135deg, var(--accent), #ec4899);
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 13px;
   font-weight: 600;
+  color: #fff;
 }
 
 .sidebar-user-info {
   display: flex;
   flex-direction: column;
+  min-width: 0;
 }
 
 .sidebar-user-org {
   font-size: 13px;
   font-weight: 500;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .sidebar-user-email {
   font-size: 11px;
-  color: #9ca3af;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
+.sidebar-theme-toggle {
+  margin-left: auto;
+  border: 1px solid var(--border-strong);
+  background: var(--panel2);
+  color: var(--muted);
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.sidebar-theme-toggle:hover {
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  border-color: var(--accent);
+}

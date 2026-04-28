@@ -6,19 +6,19 @@
   width: 36px;
   height: 36px;
   border-radius: 999px;
-  border: 1px solid #e5e7eb;
-  background: #f9fafb;
+  border: 1px solid var(--border);
+  background: var(--panel2);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #6b7280;
+  color: var(--muted);
   transition: background 0.12s, color 0.12s, border-color 0.12s;
 }
 .tpl-picker-trigger:hover {
-  background: #eef2ff;
-  color: #6366f1;
-  border-color: #c7d2fe;
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-color: var(--accent);
 }
 
 .tpl-picker-panel {
@@ -27,9 +27,10 @@
   left: 0;
   width: 340px;
   max-height: 380px;
-  background: #fff;
+  background: var(--panel);
+  border: 1px solid var(--border);
   border-radius: 14px;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.14), 0 0 0 1px rgba(0, 0, 0, 0.04);
+  box-shadow: var(--shadow-lg);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -50,12 +51,12 @@
 .tpl-picker-title {
   font-size: 14px;
   font-weight: 700;
-  color: #111827;
+  color: var(--text);
 }
 .tpl-picker-manage {
   border: none;
   background: none;
-  color: #6366f1;
+  color: var(--accent);
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
@@ -70,16 +71,19 @@
   width: 100%;
   padding: 6px 10px;
   border-radius: 8px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--border-strong);
+  background: var(--panel2);
+  color: var(--text);
   font: inherit;
   font-size: 13px;
   outline: none;
   box-sizing: border-box;
-  transition: border-color 0.15s;
+  transition: border-color 0.15s, box-shadow 0.15s;
 }
+.tpl-picker-search::placeholder { color: var(--subtle); }
 .tpl-picker-search:focus {
-  border-color: #6366f1;
-  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.1);
+  border-color: var(--accent);
+  box-shadow: var(--ring);
 }
 
 .tpl-picker-list {
@@ -91,7 +95,7 @@
 .tpl-picker-empty {
   padding: 20px 14px;
   text-align: center;
-  color: #9ca3af;
+  color: var(--subtle);
   font-size: 13px;
 }
 
@@ -104,23 +108,24 @@
   border: none;
   border-radius: 10px;
   background: transparent;
+  color: inherit;
   text-align: left;
   cursor: pointer;
   font: inherit;
   transition: background 0.1s;
 }
 .tpl-picker-item:hover {
-  background: #f0f4ff;
+  background: var(--accent-soft);
 }
 
 .tpl-picker-item-name {
   font-size: 14px;
   font-weight: 600;
-  color: #111827;
+  color: var(--text);
 }
 .tpl-picker-item-body {
   font-size: 12px;
-  color: #6b7280;
+  color: var(--muted);
   line-height: 1.4;
   white-space: nowrap;
   overflow: hidden;
@@ -128,6 +133,6 @@
 }
 .tpl-picker-item-vars {
   font-size: 11px;
-  color: #6366f1;
+  color: var(--accent);
   margin-top: 2px;
 }

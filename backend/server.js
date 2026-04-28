@@ -70,6 +70,8 @@ async function start() {
   const voiceRouter = require("./routes/voice");
   const portingRouter = require("./routes/porting");
   const complianceRouter = require("./routes/compliance");
+  const userMessagesRouter = require("./routes/userMessages");
+  const usersRouter = require("./routes/users");
 
   app.use("/api/auth", authRouter);
   app.use("/api/patients", patientsRouter);
@@ -81,6 +83,8 @@ async function start() {
   app.use("/api/voice", voiceRouter);
   app.use("/api/porting", portingRouter);
   app.use("/api/compliance", complianceRouter);
+  app.use("/api/user-messages", userMessagesRouter);
+  app.use("/api/users", usersRouter);
 
   app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);

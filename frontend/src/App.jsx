@@ -7,8 +7,11 @@ import { InboxPage } from "./pages/InboxPage";
 import { DialerPage } from "./pages/DialerPage";
 import { ContactsPage } from "./pages/ContactsPage";
 import { NumbersPage } from "./pages/NumbersPage";
+import { DirectMessagesPage } from "./pages/DirectMessagesPage";
+import { AcceptInvitePage } from "./pages/AcceptInvitePage";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import "./App.css";
+import { useEffect } from "react";
 
 function ProtectedRoute({ children }) {
   const { isAuthenticated, loading } = useAuth();
@@ -33,6 +36,7 @@ function AppRoutes() {
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/signup" element={<SignupPage />} />
+      <Route path="/accept-invite" element={<AcceptInvitePage />} />
       <Route
         path="/dashboard"
         element={
@@ -73,6 +77,14 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       />
+      <Route
+        path="/messages"
+        element={
+          <ProtectedRoute>
+            <DirectMessagesPage />
+          </ProtectedRoute>
+        }
+      />
       <Route path="/" element={<LandingPage />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
@@ -80,10 +92,18 @@ function AppRoutes() {
 }
 
 export default function App() {
+  useEffect(() => {
+    const stored = window.localStorage.getItem("theme");
+    const theme = stored || "dark";
+    document.documentElement.dataset.theme = theme;
+  }, []);
+
   return (
     <AuthProvider>
       <BrowserRouter>
-        <AppRoutes />
+        <div className="app-root">
+          <AppRoutes />
+        </div>
       </BrowserRouter>
     </AuthProvider>
   );

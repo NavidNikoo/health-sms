@@ -1,4 +1,5 @@
 import { useNavigate, useLocation } from "react-router-dom";
+import { useEffect, useState } from "react";
 import "./Sidebar.css";
 import { useAuth } from "../context/AuthContext";
 
@@ -15,12 +16,25 @@ export function Sidebar({ inboxes = [], selectedInboxId, onSelectInbox, totalUnr
   const navigate = useNavigate();
   const location = useLocation();
   const path = location.pathname;
+  const [theme, setTheme] = useState(document.documentElement.dataset.theme || "dark");
+
+  useEffect(() => {
+    setTheme(document.documentElement.dataset.theme || "dark");
+  }, []);
+
+  function toggleTheme() {
+    const next = theme === "dark" ? "light" : "dark";
+    document.documentElement.dataset.theme = next;
+    window.localStorage.setItem("theme", next);
+    setTheme(next);
+  }
 
   const isDashboard = path === "/dashboard";
   const isInbox = path === "/inbox";
   const isDialer = path === "/dialer";
   const isContacts = path === "/contacts";
   const isNumbers = path === "/numbers";
+  const isMessages = path === "/messages";
 
   return (
     <aside className="sidebar">
@@ -137,6 +151,24 @@ export function Sidebar({ inboxes = [], selectedInboxId, onSelectInbox, totalUnr
           </button>
         </div>
 
+        {/* Team Chat */}
+        <div className="sidebar-section">
+          <button
+            type="button"
+            className={"sidebar-item" + (isMessages ? " sidebar-item-active" : "")}
+            onClick={() => navigate("/messages")}
+          >
+            <span className="sidebar-item-left">
+              <span className="sidebar-nav-icon">
+                <svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                </svg>
+              </span>
+              <span>Team Chat</span>
+            </span>
+          </button>
+        </div>
+
         {/* Numbers / Manage Numbers */}
         <div className="sidebar-section">
           <button
@@ -166,6 +198,9 @@ export function Sidebar({ inboxes = [], selectedInboxId, onSelectInbox, totalUnr
           <div className="sidebar-user-org">Health SMS</div>
           <div className="sidebar-user-email">{user?.email || ""}</div>
         </div>
+        <button type="button" className="sidebar-theme-toggle" onClick={toggleTheme} title="Toggle theme">
+          {theme === "dark" ? "Dark" : "Light"}
+        </button>
       </div>
     </aside>
   );

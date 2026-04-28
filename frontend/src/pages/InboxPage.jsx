@@ -141,6 +141,12 @@ export function InboxPage() {
     );
   }, []);
 
+  const handleConversationUpdate = useCallback((convId, updates) => {
+    setConversations((prev) =>
+      prev.map((c) => (c.id === convId ? { ...c, ...updates } : c))
+    );
+  }, []);
+
   const unreadIds = getUnreadSet(conversations, readState);
 
   const inboxUnreadCounts = {};
@@ -288,6 +294,7 @@ export function InboxPage() {
               onStartNew={() => setShowNewConversation(true)}
               onManageTemplates={() => setShowTemplateManager(true)}
               onStatusChange={handleStatusChange}
+              onConversationUpdate={handleConversationUpdate}
             />
           </div>
         </section>

@@ -2,7 +2,14 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import "./ConversationView.css";
 import { EmptyState } from "./EmptyState";
 import { TemplatePicker } from "./TemplatePicker";
-import { getMessages, sendMessage, updateConversation } from "../utils/api";
+import {
+  createInternalNote,
+  getInternalNotes,
+  getMessages,
+  getOrgUsers,
+  sendMessage,
+  updateConversation,
+} from "../utils/api";
 
 const MSG_POLL_INTERVAL = 3000;
 
@@ -31,13 +38,29 @@ function formatMessageDate(iso) {
   });
 }
 
-export function ConversationView({ token, conversationId, conversation, onStartNew, onManageTemplates, onStatusChange }) {
+export function ConversationView({
+  token,
+  conversationId,
+  conversation,
+  onStartNew,
+  onManageTemplates,
+  onStatusChange,
+  onConversationUpdate,
+}) {
   const [messages, setMessages] = useState([]);
+  const [internalNotes, setInternalNotes] = useState([]);
+  const [teamUsers, setTeamUsers] = useState([]);
   const [pendingOutgoing, setPendingOutgoing] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [notesLoading, setNotesLoading] = useState(false);
   const [sending, setSending] = useState(false);
+  const [savingNote, setSavingNote] = useState(false);
+  const [assigning, setAssigning] = useState(false);
   const [error, setError] = useState(null);
+  const [notesError, setNotesError] = useState(null);
   const [input, setInput] = useState("");
+  const [noteInput, setNoteInput] = useState("");
+  const [activeTab, setActiveTab] = useState("messages"); // messages | notes | details
   const [msgSearch, setMsgSearch] = useState("");
   const [msgSearchOpen, setMsgSearchOpen] = useState(false);
   const [matchIdx, setMatchIdx] = useState(0);
@@ -48,6 +71,8 @@ export function ConversationView({ token, conversationId, conversation, onStartN
   const pollRef = useRef(null);
   const msgCountRef = useRef(0);
   const menuRef = useRef(null);
+
+  const assignedToUserId = conversation?.assignedToUserId || "";
 
   const dedupeMessages = useCallback((list) => {
     const seen = new Set();
@@ -85,6 +110,34 @@ export function ConversationView({ token, conversationId, conversation, onStartN
     setPendingOutgoing([]);
     loadMessages();
   }, [loadMessages]);
+
+  const loadInternalNotes = useCallback(async () => {
+    if (!token || !conversationId) return;
+    setNotesLoading(true);
+    setNotesError(null);
+    try {
+      const notes = await getInternalNotes(token, conversationId);
+      setInternalNotes(notes);
+    } catch (err) {
+      setNotesError(err.message || "Failed to load internal notes");
+    } finally {
+      setNotesLoading(false);
+    }
+  }, [token, conversationId]);
+
+  useEffect(() => {
+    setInternalNotes([]);
+    setNoteInput("");
+    setActiveTab("messages");
+    loadInternalNotes();
+  }, [loadInternalNotes]);
+
+  useEffect(() => {
+    if (!token) return;
+    getOrgUsers(token)
+      .then((data) => setTeamUsers(data.users || []))
+      .catch(() => {});
+  }, [token]);
 
   useEffect(() => {
     if (!token || !conversationId) return;
@@ -216,8 +269,41 @@ export function ConversationView({ token, conversationId, conversation, onStartN
     finally { setStatusUpdating(false); setMenuOpen(false); }
   };
 
+  const handleAssign = async (nextAssigneeId) => {
+    if (!conversationId || assigning) return;
+    setAssigning(true);
+    setNotesError(null);
+    try {
+      const updated = await updateConversation(token, conversationId, {
+        assignedToUserId: nextAssigneeId || null,
+      });
+      if (onConversationUpdate) onConversationUpdate(conversationId, updated);
+    } catch (err) {
+      setNotesError(err.message || "Failed to assign conversation");
+    } finally {
+      setAssigning(false);
+    }
+  };
+
+  const handleCreateNote = async () => {
+    const body = noteInput.trim();
+    if (!body || savingNote) return;
+    setSavingNote(true);
+    setNotesError(null);
+    try {
+      const note = await createInternalNote(token, conversationId, body);
+      setInternalNotes((prev) => [...prev, note]);
+      setNoteInput("");
+    } catch (err) {
+      setNotesError(err.message || "Failed to create internal note");
+    } finally {
+      setSavingNote(false);
+    }
+  };
+
   const isClosed = conversation?.status === "closed";
   const displayMessages = dedupeMessages([...messages, ...pendingOutgoing]);
+  const mentionCount = internalNotes.filter((note) => note.mentionsMe).length;
 
   useEffect(() => {
     if (matchedIds.length > 0) scrollToMessage(matchedIds[matchIdx]);
@@ -246,6 +332,19 @@ export function ConversationView({ token, conversationId, conversation, onStartN
     }
     if (last < text.length) parts.push(text.slice(last));
     return parts.length ? parts : text;
+  }
+
+  function formatNoteAuthor(note) {
+    return (
+      note.createdBy?.displayName ||
+      note.createdBy?.handle ||
+      note.createdBy?.email?.split("@")[0] ||
+      "Team member"
+    );
+  }
+
+  function formatTeamUser(user) {
+    return user.display_name || user.handle || user.email || user.id;
   }
 
   return (
@@ -324,97 +423,245 @@ export function ConversationView({ token, conversationId, conversation, onStartN
         </div>
       </header>
 
-      <div className="conv-view-body" ref={bodyRef}>
-        {loading ? (
-          <div className="conv-view-loading">Loading messages…</div>
-        ) : error ? (
-          <div className="conv-view-error">{error}</div>
-        ) : displayMessages.length === 0 ? (
-          <div className="conv-view-empty">No messages yet. Say hello!</div>
-        ) : (
-          displayMessages.map((msg) => {
-            const isMatch = matchedIds.includes(msg.id);
-            const isCurrent = matchedIds[matchIdx] === msg.id;
-            return (
-              <div
-                key={msg.id}
-                data-msg-id={msg.id}
-                className={
-                  "conv-view-message " +
-                  (msg.direction === "outbound" ? "conv-view-message-outbound" : "conv-view-message-inbound") +
-                  (msg.status === "failed" ? " conv-view-message-failed" : "") +
-                  (msg.status === "sending" ? " conv-view-message-sending" : "") +
-                  (isCurrent ? " conv-view-message-current" : isMatch ? " conv-view-message-match" : "")
-                }
-              >
-                <div className="conv-view-bubble">{msgSearch ? renderBody(msg.body, msgSearch) : msg.body}</div>
-                <div className="conv-view-meta-row">
-                  <div className="conv-view-meta">{formatMessageDate(msg.createdAt)}</div>
-                  {msg.direction === "outbound" && msg.status === "sending" && (
-                    <span className="conv-view-msg-status conv-view-msg-status-sending">Sending...</span>
-                  )}
-                  {msg.direction === "outbound" && msg.status === "failed" && (
-                    <>
-                      <span className="conv-view-msg-status conv-view-msg-status-failed">
-                        Not sent
-                      </span>
-                      <button
-                        type="button"
-                        className="conv-view-retry-btn"
-                        onClick={() => handleRetryMessage(msg)}
-                        disabled={sending}
-                      >
-                        Retry
-                      </button>
-                    </>
-                  )}
-                </div>
-              </div>
-            );
-          })
-        )}
+      <div className="conv-tabs">
+        <button
+          type="button"
+          className={"conv-tab" + (activeTab === "messages" ? " conv-tab-active" : "")}
+          onClick={() => setActiveTab("messages")}
+        >
+          Patient Messages
+        </button>
+        <button
+          type="button"
+          className={"conv-tab" + (activeTab === "notes" ? " conv-tab-active" : "")}
+          onClick={() => setActiveTab("notes")}
+        >
+          Team Notes {mentionCount > 0 && <span className="conv-tab-badge">{mentionCount}</span>}
+        </button>
+        <button
+          type="button"
+          className={"conv-tab" + (activeTab === "details" ? " conv-tab-active" : "")}
+          onClick={() => setActiveTab("details")}
+        >
+          Details
+        </button>
       </div>
 
-      {isClosed ? (
-        <footer className="conv-view-footer conv-view-footer-closed">
-          <div className="conv-closed-banner">
-            <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
-            <span>This conversation is closed.</span>
-            <button type="button" className="conv-closed-reopen" onClick={handleToggleStatus} disabled={statusUpdating}>
-              {statusUpdating ? "Reopening..." : "Reopen"}
+      {activeTab === "messages" && (
+        <>
+          <div className="conv-view-body" ref={bodyRef}>
+            {loading ? (
+              <div className="conv-view-loading">Loading messages…</div>
+            ) : error ? (
+              <div className="conv-view-error">{error}</div>
+            ) : displayMessages.length === 0 ? (
+              <div className="conv-view-empty">No messages yet. Say hello!</div>
+            ) : (
+              displayMessages.map((msg) => {
+                const isMatch = matchedIds.includes(msg.id);
+                const isCurrent = matchedIds[matchIdx] === msg.id;
+                return (
+                  <div
+                    key={msg.id}
+                    data-msg-id={msg.id}
+                    className={
+                      "conv-view-message " +
+                      (msg.direction === "outbound" ? "conv-view-message-outbound" : "conv-view-message-inbound") +
+                      (msg.status === "failed" ? " conv-view-message-failed" : "") +
+                      (msg.status === "sending" ? " conv-view-message-sending" : "") +
+                      (isCurrent ? " conv-view-message-current" : isMatch ? " conv-view-message-match" : "")
+                    }
+                  >
+                    <div className="conv-view-bubble">{msgSearch ? renderBody(msg.body, msgSearch) : msg.body}</div>
+                    <div className="conv-view-meta-row">
+                      <div className="conv-view-meta">{formatMessageDate(msg.createdAt)}</div>
+                      {msg.direction === "outbound" && msg.status === "sending" && (
+                        <span className="conv-view-msg-status conv-view-msg-status-sending">Sending...</span>
+                      )}
+                      {msg.direction === "outbound" && msg.status === "failed" && (
+                        <>
+                          <span className="conv-view-msg-status conv-view-msg-status-failed">
+                            Not sent
+                          </span>
+                          <button
+                            type="button"
+                            className="conv-view-retry-btn"
+                            onClick={() => handleRetryMessage(msg)}
+                            disabled={sending}
+                          >
+                            Retry
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          {isClosed ? (
+            <footer className="conv-view-footer conv-view-footer-closed">
+              <div className="conv-closed-banner">
+                <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
+                <span>This conversation is closed.</span>
+                <button type="button" className="conv-closed-reopen" onClick={handleToggleStatus} disabled={statusUpdating}>
+                  {statusUpdating ? "Reopening..." : "Reopen"}
+                </button>
+              </div>
+            </footer>
+          ) : (
+            <footer className="conv-view-footer">
+              <TemplatePicker
+                token={token}
+                conversation={conversation}
+                onInsert={(text) => setInput(text)}
+                onManage={() => { if (onManageTemplates) onManageTemplates(); }}
+              />
+              <textarea
+                className="conv-view-input"
+                rows={2}
+                placeholder="Type a message..."
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSend();
+                  }
+                }}
+              />
+              <button
+                type="button"
+                className="conv-view-send"
+                disabled={sending || !input.trim()}
+                onClick={handleSend}
+              >
+                {sending ? "Sending…" : "Send"}
+              </button>
+            </footer>
+          )}
+        </>
+      )}
+
+      {activeTab === "notes" && (
+        <div className="conv-tab-panel">
+          <div className="conv-tab-panel-header">
+            <h3 className="conv-panel-heading">Internal Notes</h3>
+            <div className="conv-panel-hint">Clinic-only. Notes are encrypted and never sent to the patient.</div>
+          </div>
+
+          <div className="conv-notes-list conv-notes-list-tab">
+            {notesLoading ? (
+              <div className="conv-notes-empty">Loading notes...</div>
+            ) : notesError ? (
+              <div className="conv-notes-error">{notesError}</div>
+            ) : internalNotes.length === 0 ? (
+              <div className="conv-notes-empty">No internal notes yet.</div>
+            ) : (
+              internalNotes.map((note) => (
+                <div key={note.id} className={"conv-note-card" + (note.mentionsMe ? " conv-note-mentioned" : "")}>
+                  <div className="conv-note-meta">
+                    <span className="conv-note-author">{formatNoteAuthor(note)}</span>
+                    <span>{formatMessageDate(note.createdAt)}</span>
+                    {note.mentionsMe && <span className="conv-note-mention-pill">Mentioned you</span>}
+                  </div>
+                  <div className="conv-note-body">{note.body}</div>
+                </div>
+              ))
+            )}
+          </div>
+
+          <div className="conv-note-composer conv-note-composer-tab">
+            <textarea
+              className="conv-note-input"
+              rows={3}
+              placeholder="Add clinic-only note. Mention teammates with @handle."
+              value={noteInput}
+              onChange={(e) => setNoteInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                  e.preventDefault();
+                  handleCreateNote();
+                }
+              }}
+            />
+            <button
+              type="button"
+              className="conv-note-send"
+              onClick={handleCreateNote}
+              disabled={savingNote || !noteInput.trim()}
+            >
+              {savingNote ? "Saving..." : "Add Note"}
             </button>
           </div>
-        </footer>
-      ) : (
-        <footer className="conv-view-footer">
-          <TemplatePicker
-            token={token}
-            conversation={conversation}
-            onInsert={(text) => setInput(text)}
-            onManage={() => { if (onManageTemplates) onManageTemplates(); }}
-          />
-          <textarea
-            className="conv-view-input"
-            rows={2}
-            placeholder="Type a message..."
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                handleSend();
-              }
-            }}
-          />
-          <button
-            type="button"
-            className="conv-view-send"
-            disabled={sending || !input.trim()}
-            onClick={handleSend}
-          >
-            {sending ? "Sending…" : "Send"}
-          </button>
-        </footer>
+        </div>
+      )}
+
+      {activeTab === "details" && (
+        <div className="conv-tab-panel">
+          <div className="conv-details-grid">
+            <div className="conv-panel-section">
+              <div className="conv-panel-heading-row">
+                <h3 className="conv-panel-heading">Assignment</h3>
+                {assigning && <span className="conv-panel-saving">Saving...</span>}
+              </div>
+              <select
+                className="conv-assignee-select"
+                value={assignedToUserId}
+                onChange={(e) => handleAssign(e.target.value)}
+                disabled={assigning}
+              >
+                <option value="">Unassigned</option>
+                {teamUsers.map((member) => (
+                  <option key={member.id} value={member.id}>
+                    {formatTeamUser(member)} ({member.role})
+                  </option>
+                ))}
+              </select>
+              <p className="conv-panel-hint">
+                Assign ownership so one teammate is accountable for follow-up.
+              </p>
+            </div>
+
+            <div className="conv-panel-section">
+              <div className="conv-panel-heading-row">
+                <h3 className="conv-panel-heading">Conversation</h3>
+              </div>
+              <div className="conv-details-row">
+                <span className="conv-details-label">Status</span>
+                <span className="conv-details-value">{conversation?.status || "open"}</span>
+              </div>
+              <div className="conv-details-row">
+                <span className="conv-details-label">Patient</span>
+                <span className="conv-details-value">
+                  {hasName(conversation) ? conversation.patientName : formatPhone(conversation.patientPhone) || "Unknown"}
+                </span>
+              </div>
+              {hasName(conversation) && (
+                <div className="conv-details-row">
+                  <span className="conv-details-label">Phone</span>
+                  <span className="conv-details-value">{formatPhone(conversation.patientPhone)}</span>
+                </div>
+              )}
+              <div className="conv-details-row">
+                <span className="conv-details-label">Inbox</span>
+                <span className="conv-details-value">{formatPhone(conversation.inboxNumber)}</span>
+              </div>
+              <div className="conv-details-actions">
+                <button
+                  type="button"
+                  className="conv-details-btn"
+                  onClick={handleToggleStatus}
+                  disabled={statusUpdating}
+                >
+                  {statusUpdating ? "Updating..." : (isClosed ? "Reopen Conversation" : "Close Conversation")}
+                </button>
+              </div>
+              {notesError && <div className="conv-notes-error" style={{ marginTop: 10 }}>{notesError}</div>}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

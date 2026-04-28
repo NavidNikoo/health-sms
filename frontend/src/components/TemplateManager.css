@@ -1,7 +1,7 @@
 .tmgr-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.4);
+  background: rgba(0, 0, 0, 0.55);
   backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
@@ -15,14 +15,16 @@
 }
 
 .tmgr-modal {
-  background: #fff;
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--border);
   border-radius: 16px;
   width: 520px;
   max-width: 92vw;
   max-height: 80vh;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+  box-shadow: var(--shadow-lg);
   animation: tmgr-slide 0.18s ease;
   overflow: hidden;
 }
@@ -37,12 +39,12 @@
   justify-content: space-between;
   padding: 18px 20px 12px;
 }
-.tmgr-header h2 { margin: 0; font-size: 18px; font-weight: 700; }
+.tmgr-header h2 { margin: 0; font-size: 18px; font-weight: 700; color: var(--text); }
 .tmgr-close {
   border: none; background: none;
-  font-size: 22px; color: #9ca3af; cursor: pointer;
+  font-size: 22px; color: var(--subtle); cursor: pointer;
 }
-.tmgr-close:hover { color: #111827; }
+.tmgr-close:hover { color: var(--text); }
 
 .tmgr-toolbar {
   display: flex;
@@ -50,7 +52,7 @@
   justify-content: space-between;
   padding: 0 20px 12px;
 }
-.tmgr-count { font-size: 13px; color: #6b7280; }
+.tmgr-count { font-size: 13px; color: var(--muted); }
 
 .tmgr-list {
   flex: 1;
@@ -60,7 +62,7 @@
 .tmgr-empty {
   padding: 32px 20px;
   text-align: center;
-  color: #9ca3af;
+  color: var(--subtle);
   font-size: 14px;
 }
 .tmgr-list-item {
@@ -72,16 +74,16 @@
   border-radius: 10px;
   transition: background 0.1s;
 }
-.tmgr-list-item:hover { background: #f3f4f6; }
+.tmgr-list-item:hover { background: var(--panel2); }
 .tmgr-list-item-info { flex: 1; min-width: 0; }
 .tmgr-list-item-name {
   font-size: 14px;
   font-weight: 600;
-  color: #111827;
+  color: var(--text);
 }
 .tmgr-list-item-body {
   font-size: 12px;
-  color: #6b7280;
+  color: var(--muted);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -105,12 +107,12 @@
   white-space: nowrap;
 }
 .tmgr-btn:disabled { opacity: 0.5; cursor: default; }
-.tmgr-btn-primary { background: #111827; color: #f9fafb; }
-.tmgr-btn-primary:hover:not(:disabled) { background: #000; }
-.tmgr-btn-secondary { background: #f3f4f6; color: #374151; border: 1px solid #e5e7eb; }
-.tmgr-btn-secondary:hover:not(:disabled) { background: #e5e7eb; }
-.tmgr-btn-danger { background: #ef4444; color: #fff; }
-.tmgr-btn-danger:hover:not(:disabled) { background: #dc2626; }
+.tmgr-btn-primary { background: var(--accent); color: #fff; }
+.tmgr-btn-primary:hover:not(:disabled) { background: var(--accent-hover); }
+.tmgr-btn-secondary { background: var(--panel2); color: var(--text); border: 1px solid var(--border); }
+.tmgr-btn-secondary:hover:not(:disabled) { background: var(--panel3); }
+.tmgr-btn-danger { background: var(--danger); color: #fff; }
+.tmgr-btn-danger:hover:not(:disabled) { filter: brightness(0.95); }
 .tmgr-btn-sm { padding: 4px 10px; font-size: 12px; }
 
 /* ---- Form ---- */
@@ -123,8 +125,8 @@
 .tmgr-error {
   padding: 8px 12px;
   border-radius: 8px;
-  background: #fef2f2;
-  color: #dc2626;
+  background: var(--dangerBg);
+  color: var(--danger-text);
   font-size: 13px;
 }
 .tmgr-field {
@@ -135,23 +137,29 @@
 .tmgr-field span {
   font-size: 13px;
   font-weight: 500;
-  color: #374151;
+  color: var(--text);
 }
 .tmgr-field input,
 .tmgr-field textarea {
   padding: 8px 12px;
   border-radius: 8px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--border-strong);
+  background: var(--panel);
+  color: var(--text);
   font: inherit;
   font-size: 14px;
   outline: none;
   resize: vertical;
   transition: border-color 0.15s, box-shadow 0.15s;
 }
+.tmgr-field input::placeholder,
+.tmgr-field textarea::placeholder {
+  color: var(--subtle);
+}
 .tmgr-field input:focus,
 .tmgr-field textarea:focus {
-  border-color: #6366f1;
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+  border-color: var(--accent);
+  box-shadow: var(--ring);
 }
 
 .tmgr-var-hints {
@@ -162,16 +170,16 @@
 .tmgr-var-chip {
   padding: 3px 8px;
   border-radius: 6px;
-  border: 1px solid #c7d2fe;
-  background: #eef2ff;
-  color: #6366f1;
+  border: 1px solid var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-text);
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
   font-family: monospace;
   transition: background 0.1s;
 }
-.tmgr-var-chip:hover { background: #dbeafe; }
+.tmgr-var-chip:hover { background: var(--accent); color: #fff; }
 
 .tmgr-form-actions {
   display: flex;
@@ -184,7 +192,7 @@
 .tmgr-delete-overlay {
   position: absolute;
   inset: 0;
-  background: rgba(255, 255, 255, 0.9);
+  background: rgba(0, 0, 0, 0.55);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -192,10 +200,15 @@
 }
 .tmgr-delete-box {
   text-align: center;
+  padding: 16px 22px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: var(--shadow-lg);
 }
 .tmgr-delete-box p {
   margin: 0 0 14px;
   font-size: 15px;
   font-weight: 500;
-  color: #111827;
+  color: var(--text);
 }
