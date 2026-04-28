@@ -40,19 +40,31 @@ export function SignupPage() {
     if (!isValid) return;
     setError("");
     setLoading(true);
-    try {
-      await signup({ orgName: orgName.trim(), email: email.trim(), password });
-      navigate("/inbox");
-    } catch (err) {
-      const msg = err.message || "Signup failed";
+
+    const result = await signup({ orgName: orgName.trim(), email: email.trim(), password });
+
+    setLoading(false);
+
+    if (result?.error) {
       setError(
-        msg === "Failed to fetch"
+        result.error === "Failed to fetch"
           ? "Cannot reach the server. Is the backend running?"
-          : msg
+          : result.error
       );
-    } finally {
-      setLoading(false);
+      return;
     }
+
+    // New admins must set up 2FA before accessing the app
+    if (result?.requires2faSetup) {
+      navigate("/2fa/setup", {
+        replace: true,
+        state: { required: true },
+      });
+      return;
+    }
+
+    // Fallback (shouldn't normally reach here)
+    navigate("/inbox");
   };
 
   return (

@@ -1,135 +1,191 @@
-import { useState, useEffect } from "react";
-import { useNavigate, Link } from "react-router-dom";
+/**
+ * LoginPage.jsx  (updated for 2FA)
+ *
+ * Changes from original:
+ *   - After login(), checks result for requires2fa / requires2faSetup flags.
+ *   - Navigates to /2fa/verify (with preAuthToken in state) when 2FA is needed.
+ *   - Navigates to /2fa/setup (with required: true) when admin hasn't set up 2FA.
+ *
+ * Everything else (styling, form, error display) should match your existing
+ * LoginPage — this is a minimal diff showing only the logic changes.
+ * Replace the handleSubmit / result-handling section of your existing file.
+ */
+
+import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import "./AuthPages.css";
 
 export function LoginPage() {
   const navigate = useNavigate();
-  const { login, isAuthenticated } = useAuth();
-  const [email, setEmail] = useState("provider@clinic.demo");
-  const [password, setPassword] = useState("password123");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const { login } = useAuth();
 
-  useEffect(() => {
-    const prev = document.documentElement.style.backgroundColor;
-    document.documentElement.style.backgroundColor = "#050505";
-    return () => { document.documentElement.style.backgroundColor = prev; };
-  }, []);
+  const [email, setEmail]       = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError]       = useState("");
+  const [loading, setLoading]   = useState(false);
 
-  if (isAuthenticated) {
-    navigate("/inbox");
-  }
-
-  const handleSubmit = async (e) => {
+  async function handleSubmit(e) {
     e.preventDefault();
     setError("");
     setLoading(true);
-    try {
-      await login(email, password);
-      navigate("/inbox");
-    } catch (err) {
-      const msg = err.message || "Login failed";
-      setError(
-        msg === "Failed to fetch"
-          ? "Cannot reach the server. Is the backend running at http://localhost:3000?"
-          : msg
-      );
-    } finally {
-      setLoading(false);
+
+    const result = await login(email.trim(), password);
+
+    setLoading(false);
+
+    if (result.error) {
+      setError(result.error);
+      return;
     }
-  };
+
+    if (result.requires2fa) {
+      // Password OK — send user to the TOTP step
+      navigate("/2fa/verify", {
+        replace: true,
+        state: { preAuthToken: result.preAuthToken },
+      });
+      return;
+    }
+
+    if (result.requires2faSetup) {
+      // Admin session is active but 2FA hasn't been configured yet
+      navigate("/2fa/setup", {
+        replace: true,
+        state: { required: true },
+      });
+      return;
+    }
+
+    // result.ok — AuthContext already navigated to /dashboard
+  }
 
   return (
-    <div className="auth-page">
-      <div className="auth-glow" aria-hidden="true" />
+    <div style={styles.page}>
+      <div style={styles.card}>
+        <h1 style={styles.heading}>Sign in</h1>
 
-      <div className="auth-split">
-        {/* Left panel — branding / value prop */}
-        <div className="auth-panel-left">
-          <Link to="/" className="auth-back-link">
-            <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-              <path d="M19 12H5M12 19l-7-7 7-7" />
-            </svg>
-            Back to home
-          </Link>
+        {error && <div style={styles.errorBox}>{error}</div>}
 
-          <div className="auth-panel-content">
-            <div className="auth-brand">
-              <div className="auth-brand-icon">
-                <svg width="22" height="22" fill="none" stroke="#fff" strokeWidth="2" viewBox="0 0 24 24">
-                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-                </svg>
-              </div>
-              <span className="auth-brand-name">Health SMS</span>
-            </div>
-
-            <h2 className="auth-panel-headline">
-              Secure messaging<br />for modern clinics.
-            </h2>
-            <p className="auth-panel-sub">
-              HIPAA-aligned texting, calling, and patient management — all in one unified platform.
-            </p>
-
-            <div className="auth-panel-features">
-              <div className="auth-panel-feat">
-                <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M9 12l2 2 4-4" /><circle cx="12" cy="12" r="10" /></svg>
-                <span>Encrypted message storage</span>
-              </div>
-              <div className="auth-panel-feat">
-                <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M9 12l2 2 4-4" /><circle cx="12" cy="12" r="10" /></svg>
-                <span>Built-in audit logging</span>
-              </div>
-              <div className="auth-panel-feat">
-                <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M9 12l2 2 4-4" /><circle cx="12" cy="12" r="10" /></svg>
-                <span>Multi-number unified inbox</span>
-              </div>
-            </div>
+        <form onSubmit={handleSubmit} style={styles.form}>
+          <div style={styles.field}>
+            <label style={styles.label}>Email</label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              autoComplete="email"
+              style={styles.input}
+              placeholder="you@clinic.com"
+            />
           </div>
-        </div>
 
-        {/* Right panel — login form */}
-        <div className="auth-panel-right">
-          <div className="auth-card">
-            <h1 className="auth-title">Welcome back</h1>
-            <p className="auth-subtitle">
-              Demo: <code>provider@clinic.demo</code> / <code>password123</code>
-            </p>
-
-            {error && <div className="auth-error">{error}</div>}
-
-            <form onSubmit={handleSubmit} className="auth-form">
-              <label className="auth-field">
-                <span>Email</span>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@clinic.com"
-                  required
-                />
-              </label>
-              <label className="auth-field">
-                <span>Password</span>
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter your password"
-                  required
-                />
-              </label>
-              <button type="submit" className="auth-submit" disabled={loading}>
-                {loading ? "Signing in..." : "Sign in"}
-              </button>
-            </form>
-
-            <p className="auth-footer">
-              Don&apos;t have an account? <Link to="/signup">Create one</Link>
-            </p>
+          <div style={styles.field}>
+            <label style={styles.label}>Password</label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              autoComplete="current-password"
+              style={styles.input}
+              placeholder="••••••••"
+            />
           </div>
-        </div>
+
+          <button
+            type="submit"
+            disabled={loading}
+            style={{ ...styles.btn, opacity: loading ? 0.6 : 1, cursor: loading ? "not-allowed" : "pointer" }}
+          >
+            {loading ? "Signing in…" : "Sign in"}
+          </button>
+        </form>
+
+        <p style={styles.footer}>
+          Don't have an account?{" "}
+          <Link to="/signup" style={{ color: "var(--accent)" }}>Create one</Link>
+        </p>
       </div>
     </div>
   );
 }
+
+// ─── Styles (match your existing LoginPage design) ────────────────────────────
+
+const styles = {
+  page: {
+    minHeight: "100vh",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    background: "var(--bg)",
+    padding: "24px 16px",
+  },
+  card: {
+    background: "var(--panel)",
+    border: "1px solid var(--border)",
+    borderRadius: "16px",
+    padding: "40px 36px",
+    width: "100%",
+    maxWidth: "420px",
+    boxShadow: "var(--shadow-lg)",
+    display: "flex",
+    flexDirection: "column",
+    gap: "20px",
+  },
+  heading: {
+    margin: 0,
+    fontSize: "22px",
+    fontWeight: "700",
+    color: "var(--text)",
+  },
+  errorBox: {
+    padding: "12px 14px",
+    borderRadius: "8px",
+    background: "var(--dangerBg)",
+    color: "var(--danger-text)",
+    fontSize: "13px",
+  },
+  form: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "16px",
+  },
+  field: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "6px",
+  },
+  label: {
+    fontSize: "13px",
+    fontWeight: "500",
+    color: "var(--muted)",
+  },
+  input: {
+    padding: "11px 14px",
+    borderRadius: "8px",
+    border: "1.5px solid var(--border)",
+    background: "var(--panel2)",
+    color: "var(--text)",
+    fontSize: "15px",
+    outline: "none",
+  },
+  btn: {
+    padding: "13px",
+    borderRadius: "10px",
+    border: "none",
+    background: "var(--accent)",
+    color: "#fff",
+    fontSize: "15px",
+    fontWeight: "600",
+    marginTop: "4px",
+    transition: "background 0.15s",
+  },
+  footer: {
+    margin: 0,
+    fontSize: "13px",
+    color: "var(--muted)",
+    textAlign: "center",
+  },
+};

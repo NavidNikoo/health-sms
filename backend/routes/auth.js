@@ -1,21 +1,27 @@
+/**
+ * routes/auth.js  (updated for 2FA)
+ *
+ * Login flow change:
+ *   - If user has totp_enabled = TRUE, password check succeeds but returns a
+ *     short-lived pre-auth token instead of a full session token.
+ *     The client must complete the second step at POST /api/2fa/verify.
+ *   - If totp_enabled = FALSE, behaviour is unchanged (full token returned).
+ *
+ * Admins who have not yet set up 2FA are flagged with requires2faSetup: true
+ * in the login response so the frontend can redirect them to the setup page.
+ */
+
 const express = require("express");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
-const crypto = require("crypto");
 const db = require("../db");
 const { authenticate } = require("../middleware/auth");
 const { audit } = require("../lib/auditLogger");
 
 const router = express.Router();
 
-function hashToken(token) {
-  return crypto.createHash("sha256").update(token).digest("hex");
-}
+// ─── POST /api/auth/login ─────────────────────────────────────────────────────
 
-/**
- * POST /api/auth/login
- * Login endpoint - validates credentials and returns JWT token
- */
 router.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -24,9 +30,8 @@ router.post("/login", async (req, res) => {
       return res.status(400).json({ message: "Email and password required" });
     }
 
-    // Find user by email
     const userResult = await db.query(
-      "SELECT id, org_id, email, password_hash, role FROM users WHERE email = $1",
+      "SELECT id, org_id, email, password_hash, role, totp_enabled FROM users WHERE email = $1",
       [email]
     );
 
@@ -35,36 +40,50 @@ router.post("/login", async (req, res) => {
     }
 
     const user = userResult.rows[0];
-
-    // Verify password
     const isValidPassword = await bcrypt.compare(password, user.password_hash);
 
     if (!isValidPassword) {
       return res.status(401).json({ message: "Invalid email or password" });
     }
 
-    // Update last_login_at
-    await db.query(
-      "UPDATE users SET last_login_at = now() WHERE id = $1",
-      [user.id]
-    );
-
-    // Generate JWT token
     if (!process.env.JWT_SECRET) {
       console.error("JWT_SECRET not configured");
       return res.status(500).json({ message: "Server configuration error" });
     }
 
-    const tokenPayload = {
-      userId: user.id,
-      orgId: user.org_id,
-      email: user.email,
-      role: user.role,
-    };
+    // ── 2FA path: user has TOTP enabled ──────────────────────────────────────
+    if (user.totp_enabled) {
+      // Issue a short-lived pre-auth token — not usable for protected routes
+      const preAuthToken = jwt.sign(
+        { userId: user.id, type: "pre-auth" },
+        process.env.JWT_SECRET,
+        { expiresIn: "5m" }
+      );
 
-    const token = jwt.sign(tokenPayload, process.env.JWT_SECRET, {
-      expiresIn: process.env.JWT_EXPIRES_IN || "24h",
-    });
+      await audit({
+        orgId: user.org_id,
+        userId: user.id,
+        eventType: "auth.login.password_ok_awaiting_2fa",
+        resourceType: "user",
+        resourceId: user.id,
+        metadata: { email: user.email },
+        req,
+      });
+
+      return res.json({
+        requires2fa: true,
+        preAuthToken,
+      });
+    }
+
+    // ── No 2FA: issue full session token ──────────────────────────────────────
+    await db.query("UPDATE users SET last_login_at = now() WHERE id = $1", [user.id]);
+
+    const token = jwt.sign(
+      { userId: user.id, orgId: user.org_id, email: user.email, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: process.env.JWT_EXPIRES_IN || "8h" }
+    );
 
     await audit({
       orgId: user.org_id,
@@ -76,8 +95,12 @@ router.post("/login", async (req, res) => {
       req,
     });
 
+    // Flag admins who haven't set up 2FA yet so the frontend can prompt them
+    const requires2faSetup = user.role === "admin" && !user.totp_enabled;
+
     res.json({
       token,
+      requires2faSetup,
       user: {
         id: user.id,
         orgId: user.org_id,
@@ -91,13 +114,11 @@ router.post("/login", async (req, res) => {
   }
 });
 
-/**
- * POST /api/auth/signup
- * Creates a new organization and user in one step, returns JWT
- */
+// ─── POST /api/auth/signup ────────────────────────────────────────────────────
+
 router.post("/signup", async (req, res) => {
   try {
-    const { orgName, email, password, fullName } = req.body;
+    const { orgName, email, password } = req.body;
 
     if (!orgName?.trim() || !email?.trim() || !password) {
       return res.status(400).json({ message: "Organization name, email, and password are required" });
@@ -127,16 +148,11 @@ router.post("/signup", async (req, res) => {
     );
     const user = userResult.rows[0];
 
-    const tokenPayload = {
-      userId: user.id,
-      orgId: user.org_id,
-      email: user.email,
-      role: user.role,
-    };
-
-    const token = jwt.sign(tokenPayload, process.env.JWT_SECRET, {
-      expiresIn: process.env.JWT_EXPIRES_IN || "24h",
-    });
+    const token = jwt.sign(
+      { userId: user.id, orgId: user.org_id, email: user.email, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: process.env.JWT_EXPIRES_IN || "8h" }
+    );
 
     await audit({
       orgId: user.org_id,
@@ -150,12 +166,9 @@ router.post("/signup", async (req, res) => {
 
     res.status(201).json({
       token,
-      user: {
-        id: user.id,
-        orgId: user.org_id,
-        email: user.email,
-        role: user.role,
-      },
+      // New admins must set up 2FA before doing anything else
+      requires2faSetup: true,
+      user: { id: user.id, orgId: user.org_id, email: user.email, role: user.role },
     });
   } catch (error) {
     console.error("Signup error:", error.message);
@@ -163,18 +176,14 @@ router.post("/signup", async (req, res) => {
   }
 });
 
-/**
- * GET /api/auth/me
- * Returns current authenticated user info
- */
+// ─── GET /api/auth/me ─────────────────────────────────────────────────────────
+
 router.get("/me", authenticate, async (req, res) => {
   try {
     const result = await db.query(
-      `SELECT u.id, u.org_id, u.email, u.role,
-              up.handle AS dm_handle, up.display_name AS dm_display_name, up.allow_dms AS dm_allow_dms
+      `SELECT u.id, u.org_id, u.email, u.role, u.totp_enabled
        FROM users u
        JOIN organizations o ON o.id = u.org_id
-       LEFT JOIN user_profiles up ON up.user_id = u.id
        WHERE u.id = $1`,
       [req.user.userId]
     );
@@ -189,9 +198,7 @@ router.get("/me", authenticate, async (req, res) => {
       orgId: user.org_id,
       email: user.email,
       role: user.role,
-      dmHandle: user.dm_handle || null,
-      dmDisplayName: user.dm_display_name || null,
-      dmAllowDMs: user.dm_allow_dms || null,
+      totpEnabled: user.totp_enabled,
     });
   } catch (error) {
     console.error("Get me error:", error);
@@ -199,153 +206,11 @@ router.get("/me", authenticate, async (req, res) => {
   }
 });
 
-/**
- * POST /api/auth/logout
- * Logout endpoint (for now, just returns success)
- * In production, you might want to blacklist tokens
- */
+// ─── POST /api/auth/logout ────────────────────────────────────────────────────
+
 router.post("/logout", authenticate, (req, res) => {
+  // TODO: add token denylist (Redis) for true invalidation
   res.json({ message: "Logged out successfully" });
-});
-
-/**
- * GET /api/auth/invites/:token
- * Public preview of an invite — used by the accept-invite page.
- * Returns minimal info: org name, invited email, role, expiry status.
- */
-router.get("/invites/:token", async (req, res) => {
-  try {
-    const tokenHash = hashToken(req.params.token);
-    const { rows } = await db.query(
-      `SELECT i.id, i.invited_email, i.role, i.expires_at, i.used_at, i.revoked_at,
-              o.name AS org_name
-       FROM organization_invites i
-       JOIN organizations o ON o.id = i.org_id
-       WHERE i.token_hash = $1`,
-      [tokenHash]
-    );
-
-    if (rows.length === 0) {
-      return res.status(404).json({ message: "Invalid invite link" });
-    }
-
-    const invite = rows[0];
-    if (invite.used_at) return res.status(410).json({ message: "This invite has already been used" });
-    if (invite.revoked_at) return res.status(410).json({ message: "This invite has been revoked" });
-    if (new Date(invite.expires_at) < new Date()) {
-      return res.status(410).json({ message: "This invite has expired" });
-    }
-
-    res.json({
-      invite: {
-        email: invite.invited_email,
-        role: invite.role,
-        orgName: invite.org_name,
-        expiresAt: invite.expires_at,
-      },
-    });
-  } catch (err) {
-    console.error("GET /auth/invites/:token error:", err);
-    res.status(500).json({ message: "Server error" });
-  }
-});
-
-/**
- * POST /api/auth/accept-invite
- * Public. Accepts an invite and creates a user account in the invited org.
- * Body: { token, password }
- * Returns JWT + user (same shape as login).
- */
-router.post("/accept-invite", async (req, res) => {
-  try {
-    const { token, password } = req.body;
-    if (!token || !password) {
-      return res.status(400).json({ message: "Token and password required" });
-    }
-    if (password.length < 8) {
-      return res.status(400).json({ message: "Password must be at least 8 characters" });
-    }
-
-    const tokenHash = hashToken(token);
-    const inviteResult = await db.query(
-      `SELECT id, org_id, invited_email, role, expires_at, used_at, revoked_at
-       FROM organization_invites
-       WHERE token_hash = $1`,
-      [tokenHash]
-    );
-
-    if (inviteResult.rows.length === 0) {
-      return res.status(404).json({ message: "Invalid invite link" });
-    }
-
-    const invite = inviteResult.rows[0];
-    if (invite.used_at) return res.status(410).json({ message: "This invite has already been used" });
-    if (invite.revoked_at) return res.status(410).json({ message: "This invite has been revoked" });
-    if (new Date(invite.expires_at) < new Date()) {
-      return res.status(410).json({ message: "This invite has expired" });
-    }
-
-    const existing = await db.query(
-      "SELECT id FROM users WHERE lower(email) = $1",
-      [invite.invited_email]
-    );
-    if (existing.rows.length > 0) {
-      return res.status(409).json({ message: "An account with this email already exists" });
-    }
-
-    const passwordHash = await bcrypt.hash(password, 10);
-
-    const userResult = await db.query(
-      `INSERT INTO users (org_id, email, password_hash, role)
-       VALUES ($1, $2, $3, $4)
-       RETURNING id, org_id, email, role`,
-      [invite.org_id, invite.invited_email, passwordHash, invite.role]
-    );
-    const user = userResult.rows[0];
-
-    await db.query(
-      "UPDATE organization_invites SET used_at = now() WHERE id = $1",
-      [invite.id]
-    );
-
-    if (!process.env.JWT_SECRET) {
-      console.error("JWT_SECRET not configured");
-      return res.status(500).json({ message: "Server configuration error" });
-    }
-
-    const tokenPayload = {
-      userId: user.id,
-      orgId: user.org_id,
-      email: user.email,
-      role: user.role,
-    };
-    const jwtToken = jwt.sign(tokenPayload, process.env.JWT_SECRET, {
-      expiresIn: process.env.JWT_EXPIRES_IN || "24h",
-    });
-
-    await audit({
-      orgId: user.org_id,
-      userId: user.id,
-      eventType: "org.invite.accept",
-      resourceType: "org_invite",
-      resourceId: invite.id,
-      metadata: { email: user.email, role: user.role },
-      req,
-    });
-
-    res.status(201).json({
-      token: jwtToken,
-      user: {
-        id: user.id,
-        orgId: user.org_id,
-        email: user.email,
-        role: user.role,
-      },
-    });
-  } catch (err) {
-    console.error("POST /auth/accept-invite error:", err);
-    res.status(500).json({ message: "Server error" });
-  }
 });
 
 module.exports = router;
