@@ -1,10 +1,11 @@
 const express = require("express");
 const crypto = require("crypto");
-const jwt = require("jsonwebtoken");
 const router = express.Router();
 const db = require("../db");
 const { authenticate } = require("../middleware/auth");
 const { audit } = require("../lib/auditLogger");
+const { issueAccessToken, createSession, revokeAllForUser } = require("../lib/sessions");
+const { logError } = require("../lib/safeLog");
 
 router.use(authenticate);
 
@@ -44,7 +45,7 @@ router.get("/org", async (req, res) => {
     );
     return res.json({ users: rows });
   } catch (err) {
-    console.error("GET /users/org error:", err);
+    logError("GET /users/org error:", err);
     return res.status(500).json({ message: "Server error" });
   }
 });
@@ -98,7 +99,7 @@ router.delete("/org/:id", requireAdmin, async (req, res) => {
 
     return res.json({ success: true });
   } catch (err) {
-    console.error("DELETE /users/org/:id error:", err);
+    logError("DELETE /users/org/:id error:", err);
     return res.status(500).json({ message: "Server error" });
   }
 });
@@ -164,7 +165,7 @@ router.post("/invites", requireAdmin, async (req, res) => {
       inviteLink: buildInviteLink(req, token),
     });
   } catch (err) {
-    console.error("POST /users/invites error:", err);
+    logError("POST /users/invites error:", err);
     return res.status(500).json({ message: "Server error" });
   }
 });
@@ -187,7 +188,7 @@ router.get("/invites", requireAdmin, async (req, res) => {
     );
     return res.json({ invites: rows });
   } catch (err) {
-    console.error("GET /users/invites error:", err);
+    logError("GET /users/invites error:", err);
     return res.status(500).json({ message: "Server error" });
   }
 });
@@ -216,7 +217,7 @@ router.get("/my-invites", async (req, res) => {
     );
     return res.json({ invites: rows });
   } catch (err) {
-    console.error("GET /users/my-invites error:", err);
+    logError("GET /users/my-invites error:", err);
     return res.status(500).json({ message: "Server error" });
   }
 });
@@ -267,11 +268,17 @@ router.post("/my-invites/:id/accept", async (req, res) => {
     if (!process.env.JWT_SECRET) {
       return res.status(500).json({ message: "Server configuration error" });
     }
-    const newToken = jwt.sign(
-      { userId: user.id, orgId: user.org_id, email: user.email, role: user.role },
-      process.env.JWT_SECRET,
-      { expiresIn: process.env.JWT_EXPIRES_IN || "24h" }
-    );
+
+    // Org membership has changed — invalidate any sessions issued for the
+    // previous org. The user must obtain fresh tokens scoped to the new org.
+    await revokeAllForUser(user.id, "org_changed");
+
+    const accessToken = issueAccessToken(user);
+    const session = await createSession({
+      userId: user.id,
+      orgId: user.org_id,
+      req,
+    });
 
     await audit({
       orgId: user.org_id,
@@ -284,7 +291,9 @@ router.post("/my-invites/:id/accept", async (req, res) => {
     });
 
     return res.json({
-      token: newToken,
+      token: accessToken,
+      accessToken,
+      refreshToken: session.refreshToken,
       user: {
         id: user.id,
         orgId: user.org_id,
@@ -293,7 +302,7 @@ router.post("/my-invites/:id/accept", async (req, res) => {
       },
     });
   } catch (err) {
-    console.error("POST /users/my-invites/:id/accept error:", err);
+    logError("POST /users/my-invites/:id/accept error:", err);
     return res.status(500).json({ message: "Server error" });
   }
 });
@@ -331,7 +340,7 @@ router.post("/my-invites/:id/decline", async (req, res) => {
 
     return res.json({ success: true });
   } catch (err) {
-    console.error("POST /users/my-invites/:id/decline error:", err);
+    logError("POST /users/my-invites/:id/decline error:", err);
     return res.status(500).json({ message: "Server error" });
   }
 });
@@ -366,7 +375,7 @@ router.delete("/invites/:id", requireAdmin, async (req, res) => {
 
     return res.json({ success: true });
   } catch (err) {
-    console.error("DELETE /users/invites/:id error:", err);
+    logError("DELETE /users/invites/:id error:", err);
     return res.status(500).json({ message: "Server error" });
   }
 });

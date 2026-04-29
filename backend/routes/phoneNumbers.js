@@ -3,6 +3,12 @@ const db = require("../db");
 const { authenticate } = require("../middleware/auth");
 const { getClient } = require("../twilio");
 const { audit } = require("../lib/auditLogger");
+const { costEndpointLimiter } = require("../middleware/rateLimit");
+const {
+  requireAdmin,
+  requireBillingEnabled,
+  requireTwilioPurchases,
+} = require("../middleware/billing");
 
 const router = express.Router();
 
@@ -208,7 +214,14 @@ router.get("/available", authenticate, async (req, res) => {
 });
 
 // POST / — provision a Twilio number and add it to the org
-router.post("/", authenticate, async (req, res) => {
+router.post(
+  "/",
+  authenticate,
+  requireAdmin,
+  requireBillingEnabled,
+  requireTwilioPurchases,
+  costEndpointLimiter,
+  async (req, res) => {
   const client = getClient();
   if (!client) {
     return res.status(503).json({ message: "Twilio not configured. Add TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN." });
@@ -275,7 +288,8 @@ router.post("/", authenticate, async (req, res) => {
       err.message?.includes("valid forwarding");
     res.status(isValidationError ? 400 : 500).json({ message: err.message || "Failed to provision number" });
   }
-});
+  }
+);
 
 // GET /twilio-owned — list Twilio incomingPhoneNumbers not yet claimed in this org
 router.get("/twilio-owned", authenticate, async (req, res) => {
@@ -309,11 +323,18 @@ router.get("/twilio-owned", authenticate, async (req, res) => {
 });
 
 // POST /claim — claim a Twilio number that already exists in the account
-router.post("/claim", authenticate, async (req, res) => {
-  const client = getClient();
-  if (!client) {
-    return res.status(503).json({ message: "Twilio not configured." });
-  }
+router.post(
+  "/claim",
+  authenticate,
+  requireAdmin,
+  requireBillingEnabled,
+  requireTwilioPurchases,
+  costEndpointLimiter,
+  async (req, res) => {
+    const client = getClient();
+    if (!client) {
+      return res.status(503).json({ message: "Twilio not configured." });
+    }
 
   const { providerSid, label } = req.body;
   if (!providerSid) {
@@ -364,7 +385,8 @@ router.post("/claim", authenticate, async (req, res) => {
     }
     res.status(500).json({ message: err.message || "Failed to claim number" });
   }
-});
+  }
+);
 
 // PATCH /:id — update label and/or call forwarding number
 router.patch("/:id", authenticate, async (req, res) => {

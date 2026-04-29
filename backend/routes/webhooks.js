@@ -3,6 +3,7 @@ const db = require("../db");
 const { audit } = require("../lib/auditLogger");
 const { encryptBody } = require("../lib/phiCrypto");
 const { validateTwilioSignature } = require("../middleware/validateTwilioSignature");
+const { redactPhone, logError } = require("../lib/safeLog");
 
 const router = express.Router();
 
@@ -24,7 +25,8 @@ router.post("/twilio/sms", validateTwilioSignature("/api/webhooks/twilio/sms"), 
     const { From, To, Body, MessageSid } = req.body;
 
     if (!From || !To || !Body) {
-      console.error("Webhook missing required fields (From/To/Body)");
+      // NOTE: never log Body or From here — both are PHI.
+      console.error("Webhook missing required fields");
       return res.type("text/xml").status(400).send("<Response></Response>");
     }
 
@@ -39,7 +41,7 @@ router.post("/twilio/sms", validateTwilioSignature("/api/webhooks/twilio/sms"), 
     );
 
     if (phoneResult.rows.length === 0) {
-      console.error("Inbound SMS to unknown number:", inboxE164);
+      console.error("Inbound SMS to unknown number:", redactPhone(inboxE164));
       return res.type("text/xml").status(200).send("<Response></Response>");
     }
 
@@ -104,7 +106,7 @@ router.post("/twilio/sms", validateTwilioSignature("/api/webhooks/twilio/sms"), 
 
     res.type("text/xml").status(200).send("<Response></Response>");
   } catch (err) {
-    console.error("Webhook error:", err.message);
+    logError("Webhook error:", err);
     res.type("text/xml").status(500).send("<Response></Response>");
   }
 });
@@ -144,7 +146,7 @@ router.post("/twilio/message-status", validateTwilioSignature("/api/webhooks/twi
 
     res.status(200).json({ ok: true });
   } catch (err) {
-    console.error("Message status webhook error:", err.message);
+    logError("Message status webhook error:", err);
     res.status(200).json({ ok: true });
   }
 });

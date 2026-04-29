@@ -448,6 +448,23 @@
   color: var(--muted);
 }
 
+.np-billing-banner {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px 16px;
+  border-radius: 10px;
+  background: var(--dangerBg, #fff6e5);
+  color: var(--text);
+  border: 1px solid var(--border, #f0d398);
+  font-size: 13px;
+  margin-bottom: 24px;
+}
+
+.np-billing-banner strong {
+  font-size: 14px;
+}
+
 @media (max-width: 640px) {
   .np-page {
     padding: 20px;

@@ -87,7 +87,11 @@ export function TwoFactorVerifyPage() {
         return;
       }
 
-      loginWithToken(data.token, data.user);
+      loginWithToken(
+        data.accessToken || data.token,
+        data.user,
+        data.refreshToken
+      );
       navigate("/dashboard", { replace: true });
     } catch {
       setError("Network error — check your connection and try again");

@@ -2,6 +2,12 @@ const express = require("express");
 const db = require("../db");
 const { authenticate } = require("../middleware/auth");
 const { getClient } = require("../twilio");
+const { costEndpointLimiter } = require("../middleware/rateLimit");
+const {
+  requireAdmin,
+  requireBillingEnabled,
+  requireTwilioPurchases,
+} = require("../middleware/billing");
 
 const router = express.Router();
 
@@ -70,11 +76,18 @@ router.get("/check", authenticate, async (req, res) => {
 });
 
 // POST /request — submit a new port-in request via Twilio Porting API
-router.post("/request", authenticate, async (req, res) => {
-  const client = getClient();
-  if (!client) {
-    return res.status(503).json({ message: "Twilio not configured." });
-  }
+router.post(
+  "/request",
+  authenticate,
+  requireAdmin,
+  requireBillingEnabled,
+  requireTwilioPurchases,
+  costEndpointLimiter,
+  async (req, res) => {
+    const client = getClient();
+    if (!client) {
+      return res.status(503).json({ message: "Twilio not configured." });
+    }
 
   const {
     phoneNumber,
@@ -188,7 +201,8 @@ router.post("/request", authenticate, async (req, res) => {
       message: err.message || "Failed to submit port request",
     });
   }
-});
+  }
+);
 
 // GET /requests — list port requests for this org
 router.get("/requests", authenticate, async (req, res) => {

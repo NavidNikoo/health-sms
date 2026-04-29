@@ -1,61 +1,85 @@
 /**
- * context/AuthContext.jsx  (updated for 2FA)
+ * context/AuthContext.jsx
  *
- * Changes from original:
- *   - login() now handles the requires2fa / requires2faSetup flags returned by
- *     the server and navigates accordingly instead of always storing a token.
- *   - loginWithToken() added — called by TwoFactorVerifyPage after the TOTP
- *     step succeeds to store the real session token.
- *   - refreshUser() added — called by TwoFactorSetupPage after setup completes
- *     to pull the updated totpEnabled flag into context.
- *   - token is exposed on the context so pages can attach it to API calls.
+ * Token model:
+ *   - Short-lived access JWT (auth_token) used on every API call.
+ *   - Long-lived opaque refresh token (auth_refresh) used to obtain new
+ *     access tokens via POST /api/auth/refresh.
+ *
+ * The transparent refresh flow lives in `utils/authedFetch.js`. When refresh
+ * fails (or the refresh token itself is rejected), `authedFetch` clears the
+ * stored tokens and dispatches a window event `auth:logged-out`. We listen
+ * for that here and reset state + navigate to /login.
  */
 
 import { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { API_BASE } from "../utils/apiBase";
-
-const TOKEN_KEY = "auth_token";
+import {
+  authedFetch,
+  setTokens,
+  clearTokens,
+  getAccessToken,
+  getRefreshToken,
+} from "../utils/authedFetch";
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const navigate = useNavigate();
 
-  const [token, setToken]               = useState(() => localStorage.getItem(TOKEN_KEY));
-  const [user, setUser]                 = useState(null);
-  const [loading, setLoading]           = useState(true);
+  const [token, setTokenState] = useState(() => getAccessToken());
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
-  // ── Fetch current user from /api/auth/me ─────────────────────────────────
-  const fetchMe = useCallback(async (jwt) => {
+  const applyTokens = useCallback(({ accessToken, refreshToken }) => {
+    setTokens({ accessToken, refreshToken });
+    setTokenState(accessToken || getAccessToken());
+  }, []);
+
+  const clearAuthState = useCallback(() => {
+    clearTokens();
+    setTokenState(null);
+    setUser(null);
+    setIsAuthenticated(false);
+  }, []);
+
+  // ── Fetch current user using authedFetch (auto-refreshes once on 401) ────
+  const fetchMe = useCallback(async () => {
     try {
-      const res = await fetch(`${API_BASE}/auth/me`, {
-        headers: { Authorization: `Bearer ${jwt}` },
-      });
+      const res = await authedFetch("/auth/me");
       if (!res.ok) throw new Error("Unauthorized");
       const data = await res.json();
       setUser(data);
+      setTokenState(getAccessToken());
       setIsAuthenticated(true);
       return data;
     } catch {
-      localStorage.removeItem(TOKEN_KEY);
-      setToken(null);
-      setUser(null);
-      setIsAuthenticated(false);
+      clearAuthState();
       return null;
     }
-  }, []);
+  }, [clearAuthState]);
 
-  // On mount, validate any stored token
+  // On mount, validate any stored token (and refresh if needed).
   useEffect(() => {
-    const stored = localStorage.getItem(TOKEN_KEY);
+    const stored = getAccessToken();
     if (stored) {
-      fetchMe(stored).finally(() => setLoading(false));
+      fetchMe().finally(() => setLoading(false));
     } else {
       setLoading(false);
     }
   }, [fetchMe]);
+
+  // Listen for auth wipe events emitted by authedFetch on refresh failure.
+  useEffect(() => {
+    function handleLoggedOut() {
+      clearAuthState();
+      navigate("/login", { replace: true });
+    }
+    window.addEventListener("auth:logged-out", handleLoggedOut);
+    return () => window.removeEventListener("auth:logged-out", handleLoggedOut);
+  }, [clearAuthState, navigate]);
 
   // ── signup() — called by SignupPage ──────────────────────────────────────
   async function signup({ orgName, email, password }) {
@@ -71,9 +95,11 @@ export function AuthProvider({ children }) {
         return { error: data.message || "Signup failed" };
       }
 
-      localStorage.setItem(TOKEN_KEY, data.token);
-      setToken(data.token);
-      await fetchMe(data.token);
+      applyTokens({
+        accessToken: data.accessToken || data.token,
+        refreshToken: data.refreshToken,
+      });
+      await fetchMe();
 
       // New admins always need to set up 2FA
       return { requires2faSetup: true };
@@ -106,15 +132,16 @@ export function AuthProvider({ children }) {
         return { error: data.message || "Login failed" };
       }
 
-      // Password OK but TOTP step required
+      // Password OK but TOTP step required — no session tokens issued yet.
       if (data.requires2fa) {
         return { requires2fa: true, preAuthToken: data.preAuthToken };
       }
 
-      // Store the full session token
-      localStorage.setItem(TOKEN_KEY, data.token);
-      setToken(data.token);
-      await fetchMe(data.token);
+      applyTokens({
+        accessToken: data.accessToken || data.token,
+        refreshToken: data.refreshToken,
+      });
+      await fetchMe();
 
       // Admin has a valid session but hasn't set up 2FA yet
       if (data.requires2faSetup) {
@@ -132,36 +159,36 @@ export function AuthProvider({ children }) {
   }
 
   // ── loginWithToken() — called by TwoFactorVerifyPage ─────────────────────
-  function loginWithToken(jwt, userData) {
-    localStorage.setItem(TOKEN_KEY, jwt);
-    setToken(jwt);
+  function loginWithToken(jwt, userData, refreshToken) {
+    applyTokens({ accessToken: jwt, refreshToken });
     setUser(userData);
     setIsAuthenticated(true);
   }
 
   // ── refreshUser() — re-fetch user after 2FA setup completes ──────────────
   async function refreshUser() {
-    const stored = localStorage.getItem(TOKEN_KEY);
-    if (stored) await fetchMe(stored);
+    if (getAccessToken()) await fetchMe();
   }
 
   // ── logout() ─────────────────────────────────────────────────────────────
   async function logout() {
-    const stored = localStorage.getItem(TOKEN_KEY);
-    if (stored) {
+    const access = getAccessToken();
+    const refresh = getRefreshToken();
+    if (access) {
       try {
         await fetch(`${API_BASE}/auth/logout`, {
           method: "POST",
-          headers: { Authorization: `Bearer ${stored}` },
+          headers: {
+            Authorization: `Bearer ${access}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(refresh ? { refreshToken: refresh } : {}),
         });
       } catch {
-        // ignore
+        // ignore — local state is the source of truth
       }
     }
-    localStorage.removeItem(TOKEN_KEY);
-    setToken(null);
-    setUser(null);
-    setIsAuthenticated(false);
+    clearAuthState();
     navigate("/login", { replace: true });
   }
 

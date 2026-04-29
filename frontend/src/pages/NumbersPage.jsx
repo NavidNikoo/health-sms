@@ -296,7 +296,7 @@ function SmsComplianceSection({ token }) {
 // ── Main page ───────────────────────────────────────────────────────────────
 
 export function NumbersPage() {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const [numbers, setNumbers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showWizard, setShowWizard] = useState(false);
@@ -304,6 +304,9 @@ export function NumbersPage() {
   const [debugInfo, setDebugInfo] = useState(null);
   const [debugLoading, setDebugLoading] = useState(false);
   const [debugError, setDebugError] = useState(null);
+  const [billingStatus, setBillingStatus] = useState(null);
+
+  const isAdmin = user?.role === "admin";
 
   const loadNumbers = useCallback(async () => {
     if (!token) return;
@@ -323,6 +326,44 @@ export function NumbersPage() {
   }, [token]);
 
   useEffect(() => { loadNumbers(); }, [loadNumbers]);
+
+  useEffect(() => {
+    if (!token) return;
+    let isActive = true;
+    getOrgCompliance(token)
+      .then((c) => {
+        if (isActive) {
+          setBillingStatus({
+            billingEnabled: !!c?.billingEnabled,
+            twilioPurchasesAllowed: !!c?.twilioPurchasesAllowed,
+            billingPlan: c?.billingPlan || null,
+          });
+        }
+      })
+      .catch(() => {
+        if (isActive) {
+          setBillingStatus({
+            billingEnabled: false,
+            twilioPurchasesAllowed: false,
+            billingPlan: null,
+          });
+        }
+      });
+    return () => { isActive = false; };
+  }, [token]);
+
+  const canPurchase =
+    isAdmin &&
+    billingStatus?.billingEnabled === true &&
+    billingStatus?.twilioPurchasesAllowed === true;
+
+  const purchaseBlockReason = !isAdmin
+    ? "Only admins can add or port numbers."
+    : billingStatus?.billingEnabled === false
+      ? "Billing is not enabled for this organization. Ask your admin to enable it from Compliance settings."
+      : billingStatus?.twilioPurchasesAllowed === false
+        ? "Provisioning is currently disabled on this server (ALLOW_TWILIO_PURCHASES is off)."
+        : null;
 
   useEffect(() => {
     if (!token || !debugNumberId) {
@@ -363,10 +404,19 @@ export function NumbersPage() {
             type="button"
             className="np-btn-primary"
             onClick={() => setShowWizard(true)}
+            disabled={!canPurchase}
+            title={purchaseBlockReason || ""}
           >
             + Add Number
           </button>
         </header>
+
+        {purchaseBlockReason && (
+          <div className="np-billing-banner">
+            <strong>Adding numbers is currently disabled.</strong>
+            <span>{purchaseBlockReason}</span>
+          </div>
+        )}
 
         <section className="np-section">
           <div className="np-section-header">

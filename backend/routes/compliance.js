@@ -2,17 +2,30 @@ const express = require("express");
 const db = require("../db");
 const { authenticate } = require("../middleware/auth");
 const { getClient } = require("../twilio");
+const { audit } = require("../lib/auditLogger");
+const { requireAdmin } = require("../middleware/billing");
+const {
+  purgeOrg,
+  deletePatient,
+  DEFAULT_RETENTION_DAYS,
+} = require("../lib/retention");
 
 const router = express.Router();
 
-// GET /status — current org compliance / 10DLC status
+function purchasesAllowed() {
+  const v = String(process.env.ALLOW_TWILIO_PURCHASES || "").trim().toLowerCase();
+  return v === "true" || v === "1";
+}
+
+// GET /status — current org compliance / 10DLC / billing status
 router.get("/status", authenticate, async (req, res) => {
   try {
     const result = await db.query(
       `SELECT legal_name, ein, business_address, business_city,
               business_state, business_zip, brand_type,
               trust_product_sid, brand_registration_sid, brand_status,
-              campaign_sid, campaign_status, messaging_service_sid
+              campaign_sid, campaign_status, messaging_service_sid,
+              billing_enabled, billing_plan
        FROM organizations WHERE id = $1`,
       [req.user.orgId]
     );
@@ -32,6 +45,9 @@ router.get("/status", authenticate, async (req, res) => {
       campaignStatus: org.campaign_status,
       messagingServiceSid: org.messaging_service_sid,
       hasRegistration: !!(org.brand_registration_sid || org.brand_status),
+      billingEnabled: !!org.billing_enabled,
+      billingPlan: org.billing_plan,
+      twilioPurchasesAllowed: purchasesAllowed(),
     });
   } catch (err) {
     console.error("Error fetching compliance status:", err.message);
@@ -39,8 +55,51 @@ router.get("/status", authenticate, async (req, res) => {
   }
 });
 
-// POST /brand — register brand for 10DLC
-router.post("/brand", authenticate, async (req, res) => {
+// PATCH /billing — admin-only billing enable/disable for the current org
+router.patch("/billing", authenticate, requireAdmin, async (req, res) => {
+  try {
+    const { enabled, plan, notes } = req.body || {};
+    if (typeof enabled !== "boolean") {
+      return res.status(400).json({ message: "`enabled` must be true or false" });
+    }
+
+    const result = await db.query(
+      `UPDATE organizations
+         SET billing_enabled = $1,
+             billing_plan = COALESCE($2, billing_plan),
+             billing_notes = COALESCE($3, billing_notes)
+       WHERE id = $4
+       RETURNING billing_enabled, billing_plan`,
+      [enabled, plan ?? null, notes ?? null, req.user.orgId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: "Organization not found" });
+    }
+
+    await audit({
+      orgId: req.user.orgId,
+      userId: req.user.userId,
+      eventType: enabled ? "billing.enabled" : "billing.disabled",
+      resourceType: "organization",
+      resourceId: req.user.orgId,
+      metadata: { plan: plan ?? null },
+      req,
+    });
+
+    const row = result.rows[0];
+    res.json({
+      billingEnabled: !!row.billing_enabled,
+      billingPlan: row.billing_plan,
+    });
+  } catch (err) {
+    console.error("Error updating billing flag:", err.message);
+    res.status(500).json({ message: "Failed to update billing flag" });
+  }
+});
+
+// POST /brand — register brand for 10DLC (admin only; incurs Twilio fees)
+router.post("/brand", authenticate, requireAdmin, async (req, res) => {
   const client = getClient();
   if (!client) {
     return res.status(503).json({ message: "Twilio not configured." });
@@ -138,8 +197,8 @@ router.post("/brand", authenticate, async (req, res) => {
   }
 });
 
-// POST /campaign — register a messaging campaign under the org's brand
-router.post("/campaign", authenticate, async (req, res) => {
+// POST /campaign — register a messaging campaign (admin only; incurs Twilio fees)
+router.post("/campaign", authenticate, requireAdmin, async (req, res) => {
   const client = getClient();
   if (!client) {
     return res.status(503).json({ message: "Twilio not configured." });
@@ -293,6 +352,102 @@ router.post("/refresh", authenticate, async (req, res) => {
   } catch (err) {
     console.error("Error refreshing compliance:", err.message);
     res.status(500).json({ message: "Failed to refresh status" });
+  }
+});
+
+// ─── Retention / right-to-erasure ────────────────────────────────────────────
+
+// GET /retention — current retention policy + dry-run preview
+router.get("/retention", authenticate, requireAdmin, async (req, res) => {
+  try {
+    const days = req.query.days ? Number(req.query.days) : DEFAULT_RETENTION_DAYS;
+    const safeDays = Math.max(1, Math.min(3650, Math.floor(days || DEFAULT_RETENTION_DAYS)));
+
+    const counts = await db.query(
+      `SELECT
+         (SELECT COUNT(*) FROM messages m
+            JOIN conversations c ON c.id = m.conversation_id
+            WHERE c.org_id = $1 AND m.created_at < now() - ($2 || ' days')::interval) AS messages_to_delete,
+         (SELECT COUNT(*) FROM conversation_internal_notes
+            WHERE org_id = $1 AND created_at < now() - ($2 || ' days')::interval) AS notes_to_delete,
+         (SELECT COUNT(*) FROM messages m
+            JOIN conversations c ON c.id = m.conversation_id
+            WHERE c.org_id = $1) AS total_messages,
+         (SELECT COUNT(*) FROM conversation_internal_notes
+            WHERE org_id = $1) AS total_notes,
+         (SELECT COUNT(*) FROM patients WHERE org_id = $1) AS total_patients`,
+      [req.user.orgId, safeDays]
+    );
+
+    res.json({
+      retentionDays: safeDays,
+      defaultRetentionDays: DEFAULT_RETENTION_DAYS,
+      preview: {
+        messagesToDelete: Number(counts.rows[0].messages_to_delete),
+        notesToDelete: Number(counts.rows[0].notes_to_delete),
+        totalMessages: Number(counts.rows[0].total_messages),
+        totalNotes: Number(counts.rows[0].total_notes),
+        totalPatients: Number(counts.rows[0].total_patients),
+      },
+    });
+  } catch (err) {
+    console.error("Retention preview error:", err.message);
+    res.status(500).json({ message: "Failed to load retention preview" });
+  }
+});
+
+// POST /retention/purge — run the org-scoped retention purge
+router.post("/retention/purge", authenticate, requireAdmin, async (req, res) => {
+  try {
+    const days = req.body?.days ?? req.query.days ?? DEFAULT_RETENTION_DAYS;
+    const result = await purgeOrg({ orgId: req.user.orgId, days });
+
+    await audit({
+      orgId: req.user.orgId,
+      userId: req.user.userId,
+      eventType: "retention.purge",
+      resourceType: "organization",
+      resourceId: req.user.orgId,
+      metadata: {
+        retentionDays: result.retentionDays,
+        deletedMessages: result.deletedMessages,
+        deletedInternalNotes: result.deletedInternalNotes,
+        deletedPatients: result.deletedPatients,
+      },
+      req,
+    });
+
+    res.json(result);
+  } catch (err) {
+    console.error("Retention purge error:", err.message);
+    res.status(500).json({ message: "Retention purge failed" });
+  }
+});
+
+// DELETE /patient/:id — right-to-erasure for a single patient
+router.delete("/patient/:id", authenticate, requireAdmin, async (req, res) => {
+  try {
+    const result = await deletePatient({
+      orgId: req.user.orgId,
+      patientId: req.params.id,
+    });
+
+    await audit({
+      orgId: req.user.orgId,
+      userId: req.user.userId,
+      eventType: `patient.${result.outcome}`,
+      resourceType: "patient",
+      resourceId: result.patientId,
+      req,
+    });
+
+    res.json(result);
+  } catch (err) {
+    if (err.code === "patient_not_found") {
+      return res.status(404).json({ message: "Patient not found" });
+    }
+    console.error("Patient erasure error:", err.message);
+    res.status(500).json({ message: "Failed to remove patient" });
   }
 });
 

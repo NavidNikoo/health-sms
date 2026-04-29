@@ -17,12 +17,45 @@ const jwt = require("jsonwebtoken");
 const db = require("../db");
 const { authenticate } = require("../middleware/auth");
 const { audit } = require("../lib/auditLogger");
+const {
+  loginLimiter,
+  signupLimiter,
+  passwordSensitiveLimiter,
+} = require("../middleware/rateLimit");
+const {
+  issueAccessToken,
+  createSession,
+  rotateSession,
+  revokeSession,
+  parseRefreshToken,
+} = require("../lib/sessions");
 
 const router = express.Router();
 
+async function buildLoginResponse(user, req) {
+  const accessToken = issueAccessToken(user);
+  const session = await createSession({
+    userId: user.id,
+    orgId: user.org_id,
+    req,
+  });
+  return {
+    token: accessToken,
+    accessToken,
+    refreshToken: session.refreshToken,
+    refreshExpiresAt: session.expiresAt,
+    user: {
+      id: user.id,
+      orgId: user.org_id,
+      email: user.email,
+      role: user.role,
+    },
+  };
+}
+
 // ─── POST /api/auth/login ─────────────────────────────────────────────────────
 
-router.post("/login", async (req, res) => {
+router.post("/login", loginLimiter, async (req, res) => {
   try {
     const { email, password } = req.body;
 
@@ -79,11 +112,7 @@ router.post("/login", async (req, res) => {
     // ── No 2FA: issue full session token ──────────────────────────────────────
     await db.query("UPDATE users SET last_login_at = now() WHERE id = $1", [user.id]);
 
-    const token = jwt.sign(
-      { userId: user.id, orgId: user.org_id, email: user.email, role: user.role },
-      process.env.JWT_SECRET,
-      { expiresIn: process.env.JWT_EXPIRES_IN || "8h" }
-    );
+    const response = await buildLoginResponse(user, req);
 
     await audit({
       orgId: user.org_id,
@@ -98,16 +127,7 @@ router.post("/login", async (req, res) => {
     // Flag admins who haven't set up 2FA yet so the frontend can prompt them
     const requires2faSetup = user.role === "admin" && !user.totp_enabled;
 
-    res.json({
-      token,
-      requires2faSetup,
-      user: {
-        id: user.id,
-        orgId: user.org_id,
-        email: user.email,
-        role: user.role,
-      },
-    });
+    res.json({ ...response, requires2faSetup });
   } catch (error) {
     console.error("Login error:", error.message);
     res.status(500).json({ message: "Login failed" });
@@ -116,7 +136,7 @@ router.post("/login", async (req, res) => {
 
 // ─── POST /api/auth/signup ────────────────────────────────────────────────────
 
-router.post("/signup", async (req, res) => {
+router.post("/signup", signupLimiter, async (req, res) => {
   try {
     const { orgName, email, password } = req.body;
 
@@ -148,11 +168,7 @@ router.post("/signup", async (req, res) => {
     );
     const user = userResult.rows[0];
 
-    const token = jwt.sign(
-      { userId: user.id, orgId: user.org_id, email: user.email, role: user.role },
-      process.env.JWT_SECRET,
-      { expiresIn: process.env.JWT_EXPIRES_IN || "8h" }
-    );
+    const response = await buildLoginResponse(user, req);
 
     await audit({
       orgId: user.org_id,
@@ -164,12 +180,8 @@ router.post("/signup", async (req, res) => {
       req,
     });
 
-    res.status(201).json({
-      token,
-      // New admins must set up 2FA before doing anything else
-      requires2faSetup: true,
-      user: { id: user.id, orgId: user.org_id, email: user.email, role: user.role },
-    });
+    // New admins must set up 2FA before doing anything else
+    res.status(201).json({ ...response, requires2faSetup: true });
   } catch (error) {
     console.error("Signup error:", error.message);
     res.status(500).json({ message: "Signup failed" });
@@ -201,16 +213,91 @@ router.get("/me", authenticate, async (req, res) => {
       totpEnabled: user.totp_enabled,
     });
   } catch (error) {
-    console.error("Get me error:", error);
+    console.error("Get me error:", error.message);
     res.status(500).json({ message: "Failed to get user info" });
+  }
+});
+
+// ─── POST /api/auth/refresh ───────────────────────────────────────────────────
+
+router.post("/refresh", async (req, res) => {
+  try {
+    const { refreshToken } = req.body || {};
+    if (!refreshToken) {
+      return res.status(400).json({ message: "refreshToken is required" });
+    }
+
+    const result = await rotateSession({ refreshToken, req });
+
+    await audit({
+      orgId: result.user.org_id,
+      userId: result.user.id,
+      eventType: "auth.session.refresh",
+      resourceType: "user",
+      resourceId: result.user.id,
+      req,
+    });
+
+    res.json({
+      token: result.accessToken,
+      accessToken: result.accessToken,
+      refreshToken: result.refreshToken,
+      user: {
+        id: result.user.id,
+        orgId: result.user.org_id,
+        email: result.user.email,
+        role: result.user.role,
+      },
+    });
+  } catch (err) {
+    if (err.code === "replay_detected") {
+      return res.status(401).json({
+        message: "Session reuse detected. Please log in again.",
+        code: "replay_detected",
+      });
+    }
+    if (err.code === "expired_refresh") {
+      return res.status(401).json({ message: "Session expired. Please log in again.", code: "expired_refresh" });
+    }
+    if (err.code === "invalid_refresh") {
+      return res.status(401).json({ message: "Invalid session. Please log in again.", code: "invalid_refresh" });
+    }
+    console.error("Refresh error:", err.message);
+    res.status(500).json({ message: "Failed to refresh session" });
   }
 });
 
 // ─── POST /api/auth/logout ────────────────────────────────────────────────────
 
-router.post("/logout", authenticate, (req, res) => {
-  // TODO: add token denylist (Redis) for true invalidation
-  res.json({ message: "Logged out successfully" });
+router.post("/logout", authenticate, async (req, res) => {
+  try {
+    const { refreshToken } = req.body || {};
+    const parsed = parseRefreshToken(refreshToken);
+    if (parsed) {
+      // Verify the refresh token actually belongs to this user before revoking.
+      const owns = await db.query(
+        "SELECT family_id FROM user_sessions WHERE id = $1 AND user_id = $2",
+        [parsed.sessionId, req.user.userId]
+      );
+      if (owns.rows.length > 0) {
+        await revokeSession(parsed.sessionId, "logout");
+      }
+    }
+
+    await audit({
+      orgId: req.user.orgId,
+      userId: req.user.userId,
+      eventType: "auth.logout",
+      resourceType: "user",
+      resourceId: req.user.userId,
+      req,
+    });
+
+    res.json({ message: "Logged out successfully" });
+  } catch (err) {
+    console.error("Logout error:", err.message);
+    res.json({ message: "Logged out" });
+  }
 });
 
 module.exports = router;

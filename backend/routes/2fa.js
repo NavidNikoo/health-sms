@@ -36,6 +36,11 @@ const db = require("../db");
 const { authenticate } = require("../middleware/auth");
 const { audit } = require("../lib/auditLogger");
 const { encryptBody, decryptBody } = require("../lib/phiCrypto");
+const {
+  twoFaVerifyLimiter,
+  passwordSensitiveLimiter,
+} = require("../middleware/rateLimit");
+const { issueAccessToken, createSession, revokeAllForUser } = require("../lib/sessions");
 
 const router = express.Router();
 
@@ -54,19 +59,21 @@ function verifyPreAuthToken(token) {
 }
 
 /**
- * Issue the real session JWT after both factors are verified.
+ * Issue the real session tokens (access + refresh) after both factors verify.
  */
-function issueSessionToken(user) {
-  return jwt.sign(
-    {
-      userId: user.id,
-      orgId:  user.org_id,
-      email:  user.email,
-      role:   user.role,
-    },
-    process.env.JWT_SECRET,
-    { expiresIn: process.env.JWT_EXPIRES_IN || "8h" }
-  );
+async function issueSessionPair(user, req) {
+  const accessToken = issueAccessToken(user);
+  const session = await createSession({
+    userId: user.id,
+    orgId: user.org_id,
+    req,
+  });
+  return {
+    token: accessToken,
+    accessToken,
+    refreshToken: session.refreshToken,
+    refreshExpiresAt: session.expiresAt,
+  };
 }
 
 // ─── GET /api/2fa/status ──────────────────────────────────────────────────────
@@ -168,7 +175,7 @@ router.post("/setup", authenticate, async (req, res) => {
  *
  * Body: { code: "123456" }
  */
-router.post("/verify-setup", authenticate, async (req, res) => {
+router.post("/verify-setup", twoFaVerifyLimiter, authenticate, async (req, res) => {
   try {
     const { code } = req.body;
     if (!code || typeof code !== "string" || !/^\d{6}$/.test(code.trim())) {
@@ -239,7 +246,7 @@ router.post("/verify-setup", authenticate, async (req, res) => {
  * The pre-auth token is single-use by design — it expires in 5 minutes and
  * cannot access any other route.
  */
-router.post("/verify", async (req, res) => {
+router.post("/verify", twoFaVerifyLimiter, async (req, res) => {
   try {
     const { preAuthToken, code } = req.body;
 
@@ -269,9 +276,12 @@ router.post("/verify", async (req, res) => {
     const user = result.rows[0];
 
     if (!user.totp_enabled || !user.totp_secret) {
-      // 2FA was disabled between login steps — just issue the token
-      const token = issueSessionToken(user);
-      return res.json({ token, user: { id: user.id, orgId: user.org_id, email: user.email, role: user.role } });
+      // 2FA was disabled between login steps — just issue session tokens
+      const tokens = await issueSessionPair(user, req);
+      return res.json({
+        ...tokens,
+        user: { id: user.id, orgId: user.org_id, email: user.email, role: user.role },
+      });
     }
 
     const secret = decryptBody(user.totp_secret);
@@ -291,7 +301,7 @@ router.post("/verify", async (req, res) => {
 
     await db.query("UPDATE users SET last_login_at = now() WHERE id = $1", [user.id]);
 
-    const token = issueSessionToken(user);
+    const tokens = await issueSessionPair(user, req);
 
     await audit({
       orgId: user.org_id,
@@ -303,7 +313,7 @@ router.post("/verify", async (req, res) => {
     });
 
     res.json({
-      token,
+      ...tokens,
       user: { id: user.id, orgId: user.org_id, email: user.email, role: user.role },
     });
   } catch (err) {
@@ -325,7 +335,7 @@ router.post("/verify", async (req, res) => {
  *
  * Body: { password: "current password" }
  */
-router.post("/disable", authenticate, async (req, res) => {
+router.post("/disable", passwordSensitiveLimiter, authenticate, async (req, res) => {
   try {
     const { password } = req.body;
     if (!password) {
@@ -370,6 +380,10 @@ router.post("/disable", authenticate, async (req, res) => {
       "UPDATE users SET totp_secret = NULL, totp_enabled = FALSE, totp_verified_at = NULL WHERE id = $1",
       [req.user.userId]
     );
+
+    // Force all existing sessions for this user to expire — the security
+    // posture of the account just changed materially.
+    await revokeAllForUser(req.user.userId, "2fa_disabled");
 
     await audit({
       orgId: req.user.orgId,

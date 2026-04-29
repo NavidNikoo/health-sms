@@ -4,6 +4,7 @@ const db = require("../db");
 const { authenticate } = require("../middleware/auth");
 const { encryptBody, decryptBody } = require("../lib/phiCrypto");
 const { audit } = require("../lib/auditLogger");
+const { logError } = require("../lib/safeLog");
 
 router.use(authenticate);
 
@@ -72,7 +73,7 @@ router.get("/profile/me", async (req, res) => {
     }
     return res.json({ profile: rows[0] });
   } catch (err) {
-    console.error("GET /profile/me error:", err);
+    logError("GET /profile/me error:", err);
     return res.status(500).json({ message: "Server error" });
   }
 });
@@ -129,7 +130,7 @@ router.patch("/profile/me", async (req, res) => {
 
     return res.json({ profile: rows[0] });
   } catch (err) {
-    console.error("PATCH /profile/me error:", err);
+    logError("PATCH /profile/me error:", err);
     return res.status(500).json({ message: "Server error" });
   }
 });
@@ -147,7 +148,7 @@ router.get("/resolve/:handleOrId", async (req, res) => {
 
     return res.json({ user: teammate });
   } catch (err) {
-    console.error("GET /resolve error:", err);
+    logError("GET /resolve error:", err);
     return res.status(500).json({ message: "Server error" });
   }
 });
@@ -234,7 +235,7 @@ router.post("/requests", async (req, res) => {
 
     return res.status(201).json({ request: reqRows[0], threadId: threadRows[0].id, autoAccepted: true });
   } catch (err) {
-    console.error("POST /requests error:", err);
+    logError("POST /requests error:", err);
     return res.status(500).json({ message: "Server error" });
   }
 });
@@ -251,7 +252,7 @@ router.get("/requests/incoming", async (req, res) => {
     );
     return res.json({ requests: rows });
   } catch (err) {
-    console.error("GET /requests/incoming error:", err);
+    logError("GET /requests/incoming error:", err);
     return res.status(500).json({ message: "Server error" });
   }
 });
@@ -268,7 +269,7 @@ router.get("/requests/outgoing", async (req, res) => {
     );
     return res.json({ requests: rows });
   } catch (err) {
-    console.error("GET /requests/outgoing error:", err);
+    logError("GET /requests/outgoing error:", err);
     return res.status(500).json({ message: "Server error" });
   }
 });
@@ -299,7 +300,7 @@ router.post("/requests/:id/accept", async (req, res) => {
 
     return res.json({ request: r });
   } catch (err) {
-    console.error("POST /requests/:id/accept error:", err);
+    logError("POST /requests/:id/accept error:", err);
     return res.status(500).json({ message: "Server error" });
   }
 });
@@ -322,7 +323,7 @@ router.post("/requests/:id/decline", async (req, res) => {
 
     return res.json({ request: rows[0] });
   } catch (err) {
-    console.error("POST /requests/:id/decline error:", err);
+    logError("POST /requests/:id/decline error:", err);
     return res.status(500).json({ message: "Server error" });
   }
 });
@@ -352,7 +353,7 @@ router.post("/requests/:id/block", async (req, res) => {
 
     return res.json({ request: r });
   } catch (err) {
-    console.error("POST /requests/:id/block error:", err);
+    logError("POST /requests/:id/block error:", err);
     return res.status(500).json({ message: "Server error" });
   }
 });
@@ -368,7 +369,7 @@ router.post("/requests/:id/cancel", async (req, res) => {
     if (rows.length === 0) return res.status(404).json({ message: "Request not found or already handled" });
     return res.json({ request: rows[0] });
   } catch (err) {
-    console.error("POST /requests/:id/cancel error:", err);
+    logError("POST /requests/:id/cancel error:", err);
     return res.status(500).json({ message: "Server error" });
   }
 });
@@ -425,7 +426,7 @@ router.get("/threads", async (req, res) => {
 
     return res.json({ threads });
   } catch (err) {
-    console.error("GET /threads error:", err);
+    logError("GET /threads error:", err);
     return res.status(500).json({ message: "Server error" });
   }
 });
@@ -469,7 +470,7 @@ router.get("/threads/:id/messages", async (req, res) => {
 
     return res.json({ messages });
   } catch (err) {
-    console.error("GET /threads/:id/messages error:", err);
+    logError("GET /threads/:id/messages error:", err);
     return res.status(500).json({ message: "Server error" });
   }
 });
@@ -521,7 +522,7 @@ router.post("/threads/:id/messages", async (req, res) => {
       message: { ...rows[0], body: body.trim(), body_encrypted: undefined },
     });
   } catch (err) {
-    console.error("POST /threads/:id/messages error:", err);
+    logError("POST /threads/:id/messages error:", err);
     return res.status(500).json({ message: "Server error" });
   }
 });
@@ -545,7 +546,7 @@ router.post("/threads/:id/read", async (req, res) => {
 
     return res.json({ success: true });
   } catch (err) {
-    console.error("POST /threads/:id/read error:", err);
+    logError("POST /threads/:id/read error:", err);
     return res.status(500).json({ message: "Server error" });
   }
 });
@@ -566,7 +567,7 @@ router.get("/blocks", async (req, res) => {
     );
     return res.json({ blocks: rows });
   } catch (err) {
-    console.error("GET /blocks error:", err);
+    logError("GET /blocks error:", err);
     return res.status(500).json({ message: "Server error" });
   }
 });
@@ -600,7 +601,7 @@ router.post("/blocks", async (req, res) => {
 
     return res.status(201).json({ success: true });
   } catch (err) {
-    console.error("POST /blocks error:", err);
+    logError("POST /blocks error:", err);
     return res.status(500).json({ message: "Server error" });
   }
 });
@@ -621,7 +622,7 @@ router.delete("/blocks/:userId", async (req, res) => {
 
     return res.json({ success: true });
   } catch (err) {
-    console.error("DELETE /blocks/:userId error:", err);
+    logError("DELETE /blocks/:userId error:", err);
     return res.status(500).json({ message: "Server error" });
   }
 });
