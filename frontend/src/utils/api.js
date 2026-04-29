@@ -1,6 +1,6 @@
 // Simple API helpers. These call the real backend when available.
 
-const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:3000/api";
+import { API_BASE } from "./apiBase";
 
 export async function login(email, password) {
   const res = await fetch(`${API_BASE}/auth/login`, {

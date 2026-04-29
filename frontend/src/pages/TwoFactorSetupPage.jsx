@@ -15,8 +15,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-
-const API = import.meta.env.VITE_API_URL || "http://localhost:3000";
+import { API_BASE } from "../utils/apiBase";
 
 export function TwoFactorSetupPage() {
   const navigate = useNavigate();
@@ -42,7 +41,7 @@ export function TwoFactorSetupPage() {
 
   async function initSetup() {
     try {
-      const res = await fetch(`${API}/api/2fa/setup`, {
+      const res = await fetch(`${API_BASE}/2fa/setup`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -96,7 +95,7 @@ export function TwoFactorSetupPage() {
     setError("");
 
     try {
-      const res = await fetch(`${API}/api/2fa/verify-setup`, {
+      const res = await fetch(`${API_BASE}/2fa/verify-setup`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

@@ -13,8 +13,8 @@
 
 import { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
+import { API_BASE } from "../utils/apiBase";
 
-const API = import.meta.env.VITE_API_URL || "http://localhost:3000";
 const TOKEN_KEY = "auth_token";
 
 const AuthContext = createContext(null);
@@ -30,7 +30,7 @@ export function AuthProvider({ children }) {
   // ── Fetch current user from /api/auth/me ─────────────────────────────────
   const fetchMe = useCallback(async (jwt) => {
     try {
-      const res = await fetch(`${API}/api/auth/me`, {
+      const res = await fetch(`${API_BASE}/auth/me`, {
         headers: { Authorization: `Bearer ${jwt}` },
       });
       if (!res.ok) throw new Error("Unauthorized");
@@ -60,7 +60,7 @@ export function AuthProvider({ children }) {
   // ── signup() — called by SignupPage ──────────────────────────────────────
   async function signup({ orgName, email, password }) {
     try {
-      const res = await fetch(`${API}/api/auth/signup`, {
+      const res = await fetch(`${API_BASE}/auth/signup`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ orgName, email, password }),
@@ -77,8 +77,11 @@ export function AuthProvider({ children }) {
 
       // New admins always need to set up 2FA
       return { requires2faSetup: true };
-    } catch {
-      return { error: "Network error — check your connection" };
+    } catch (err) {
+      console.error("Signup network error:", err);
+      return {
+        error: `Couldn't reach the server at ${API_BASE}. Make sure the backend is running.`,
+      };
     }
   }
 
@@ -92,7 +95,7 @@ export function AuthProvider({ children }) {
    */
   async function login(email, password) {
     try {
-      const res = await fetch(`${API}/api/auth/login`, {
+      const res = await fetch(`${API_BASE}/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
@@ -120,8 +123,11 @@ export function AuthProvider({ children }) {
 
       navigate("/dashboard", { replace: true });
       return { ok: true };
-    } catch {
-      return { error: "Network error — check your connection" };
+    } catch (err) {
+      console.error("Login network error:", err);
+      return {
+        error: `Couldn't reach the server at ${API_BASE}. Make sure the backend is running.`,
+      };
     }
   }
 
@@ -144,7 +150,7 @@ export function AuthProvider({ children }) {
     const stored = localStorage.getItem(TOKEN_KEY);
     if (stored) {
       try {
-        await fetch(`${API}/api/auth/logout`, {
+        await fetch(`${API_BASE}/auth/logout`, {
           method: "POST",
           headers: { Authorization: `Bearer ${stored}` },
         });

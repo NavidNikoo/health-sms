@@ -11,8 +11,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-
-const API = import.meta.env.VITE_API_URL || "http://localhost:3000";
+import { API_BASE } from "../utils/apiBase";
 
 export function TwoFactorVerifyPage() {
   const navigate = useNavigate();
@@ -74,7 +73,7 @@ export function TwoFactorVerifyPage() {
     setError("");
 
     try {
-      const res = await fetch(`${API}/api/2fa/verify`, {
+      const res = await fetch(`${API_BASE}/2fa/verify`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ preAuthToken, code }),
