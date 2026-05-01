@@ -7,3 +7,4 @@ build/
 .vite/
 .idea/
 .DS_Store
+.cursor/

@@ -32,6 +32,10 @@ const {
 
 const router = express.Router();
 
+function hashInviteToken(token) {
+  return require("crypto").createHash("sha256").update(token).digest("hex");
+}
+
 async function buildLoginResponse(user, req) {
   const accessToken = issueAccessToken(user);
   const session = await createSession({
@@ -185,6 +189,119 @@ router.post("/signup", signupLimiter, async (req, res) => {
   } catch (error) {
     console.error("Signup error:", error.message);
     res.status(500).json({ message: "Signup failed" });
+  }
+});
+
+// ─── GET /api/auth/invites/:token ─────────────────────────────────────────────
+
+router.get("/invites/:token", async (req, res) => {
+  try {
+    const tokenHash = hashInviteToken(req.params.token || "");
+    const result = await db.query(
+      `SELECT i.invited_email, i.role, i.expires_at, i.used_at, i.revoked_at,
+              o.name AS org_name
+       FROM organization_invites i
+       JOIN organizations o ON o.id = i.org_id
+       WHERE i.token_hash = $1`,
+      [tokenHash]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: "Invite not found" });
+    }
+
+    const invite = result.rows[0];
+    if (invite.used_at) return res.status(410).json({ message: "This invite has already been used" });
+    if (invite.revoked_at) return res.status(410).json({ message: "This invite has been revoked" });
+    if (new Date(invite.expires_at) < new Date()) {
+      return res.status(410).json({ message: "This invite has expired" });
+    }
+
+    res.json({
+      invite: {
+        email: invite.invited_email,
+        role: invite.role,
+        orgName: invite.org_name,
+        expiresAt: invite.expires_at,
+      },
+    });
+  } catch (error) {
+    console.error("Invite preview error:", error.message);
+    res.status(500).json({ message: "Failed to load invite" });
+  }
+});
+
+// ─── POST /api/auth/accept-invite ─────────────────────────────────────────────
+
+router.post("/accept-invite", async (req, res) => {
+  try {
+    const { token, password } = req.body || {};
+    if (!token || !password) {
+      return res.status(400).json({ message: "Token and password are required" });
+    }
+    if (password.length < 8) {
+      return res.status(400).json({ message: "Password must be at least 8 characters" });
+    }
+
+    const tokenHash = hashInviteToken(token);
+    const inviteResult = await db.query(
+      `SELECT id, org_id, invited_email, role, expires_at, used_at, revoked_at
+       FROM organization_invites
+       WHERE token_hash = $1`,
+      [tokenHash]
+    );
+
+    if (inviteResult.rows.length === 0) {
+      return res.status(404).json({ message: "Invite not found" });
+    }
+
+    const invite = inviteResult.rows[0];
+    if (invite.used_at) return res.status(410).json({ message: "This invite has already been used" });
+    if (invite.revoked_at) return res.status(410).json({ message: "This invite has been revoked" });
+    if (new Date(invite.expires_at) < new Date()) {
+      return res.status(410).json({ message: "This invite has expired" });
+    }
+
+    const existing = await db.query(
+      "SELECT id FROM users WHERE lower(email) = lower($1)",
+      [invite.invited_email]
+    );
+    if (existing.rows.length > 0) {
+      return res.status(409).json({
+        message: "An account already exists for this email. Sign in to accept the invite from the Invites tab.",
+      });
+    }
+
+    const passwordHash = await bcrypt.hash(password, 10);
+    const userResult = await db.query(
+      `INSERT INTO users (org_id, email, password_hash, role)
+       VALUES ($1, $2, $3, $4)
+       RETURNING id, org_id, email, role`,
+      [invite.org_id, invite.invited_email.toLowerCase(), passwordHash, invite.role]
+    );
+    const user = userResult.rows[0];
+
+    await db.query(
+      "UPDATE organization_invites SET used_at = now() WHERE id = $1",
+      [invite.id]
+    );
+
+    const response = await buildLoginResponse(user, req);
+
+    await audit({
+      orgId: user.org_id,
+      userId: user.id,
+      eventType: "org.invite.accept",
+      resourceType: "org_invite",
+      resourceId: invite.id,
+      metadata: { email: user.email, role: user.role, newAccount: true },
+      req,
+    });
+
+    res.status(201).json(response);
+  } catch (error) {
+    console.error("Accept invite error:", error.message);
+    res.status(500).json({ message: "Failed to accept invite" });
   }
 });
 

@@ -165,6 +165,12 @@ export function AuthProvider({ children }) {
     setIsAuthenticated(true);
   }
 
+  function setSession({ user: userData, token: accessToken, accessToken: explicitAccessToken, refreshToken }) {
+    applyTokens({ accessToken: explicitAccessToken || accessToken, refreshToken });
+    setUser(userData);
+    setIsAuthenticated(true);
+  }
+
   // ── refreshUser() — re-fetch user after 2FA setup completes ──────────────
   async function refreshUser() {
     if (getAccessToken()) await fetchMe();
@@ -201,6 +207,7 @@ export function AuthProvider({ children }) {
       login,
       signup,
       loginWithToken,
+      setSession,
       refreshUser,
       logout,
     }}>

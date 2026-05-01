@@ -1,240 +1,146 @@
 # Health SMS – HIPAA-Oriented Cloud Messaging Platform
 
-Cloud Computing & Security Project
+Cloud Computing & Security Project  
 Team: Navid Nikoo, Christian Ramirez, Matin Noorzaye, Miguel Romero-Mojica
 
 ---
 
 ## Project Overview
 
-Health SMS is a cloud-based messaging platform designed for healthcare providers. The system focuses on secure communication and demonstrates HIPAA-aligned technical safeguards.
-
-The goal of this project is to build a functional prototype that shows how healthcare messaging can be implemented securely in a cloud environment.
-
-Key security objectives:
-
-* Encrypted data storage (PHI protection)
-* Secure transmission (HTTPS)
-* Authentication and role-based access control
-* Audit logging for accountability
-* Deployment on a cloud virtual machine
-
----
-
-## Current Status (Week 1)
-
-Project foundation completed:
-
-```
-health-sms/
-│
-├── frontend/     React (Vite)
-├── backend/      Node.js + Express API
-└── infra/        Cloud & Docker configuration (coming soon)
-```
-
-Working locally:
-
-* Frontend: [http://localhost:5173](http://localhost:5173)
-* Backend: [http://localhost:3000](http://localhost:3000)
-
-Completed:
-
-* Repository created
-* Project structure initialized
-* Express server running
-* React app running
-* Basic development environment ready
+Health SMS is a cloud-based messaging platform for healthcare providers. It supports patient SMS conversations, organization-scoped team chat, and demonstrates HIPAA-minded technical safeguards (encryption at rest for message bodies, audit logging, 2FA, Twilio webhook validation, retention helpers).
 
 ---
 
 ## Tech Stack
 
-Frontend
-
-* React (Vite)
-
-Backend
-
-* Node.js
-* Express
-
-Database (Next)
-
-* PostgreSQL
-
-Cloud
-
-* AWS Virtual Machine (Lightsail or EC2)
-
-Deployment (Next)
-
-* Docker + Docker Compose
-
-Security Features (Planned)
-
-* User authentication (JWT)
-* Role-Based Access Control (Admin / Provider)
-* AES encryption for message storage
-* HTTPS (TLS)
-* Audit logging
-
-External Service (Planned)
-
-* Twilio SMS (or simulated gateway)
+| Layer | Stack |
+|--------|--------|
+| Frontend | React (Vite), React Router |
+| Backend | Node.js, Express |
+| Database | **PostgreSQL** (via `pg` / `DATABASE_URL` or `PG*` env vars) |
+| SMS / Voice | Twilio (optional; configure per `.env`) |
 
 ---
 
-## Local Setup Instructions
-
-### 1. Clone the repository
+## Repository Layout
 
 ```
+health-sms/
+├── frontend/          React (Vite) SPA
+├── backend/           Express API (`server.js`)
+│   ├── routes/        Auth, patients, conversations, webhooks, users, team chat, …
+│   ├── schema.sql     Base PostgreSQL schema
+│   └── scripts/       SQL migrations (invites, 2FA, sessions, team chat, …)
+└── infra/             Cloud & Docker (as needed)
+```
+
+---
+
+## Local Development
+
+### Prerequisites
+
+- Node.js 18+
+- PostgreSQL 14+ with a database (e.g. `health_sms`)
+
+### 1. Clone
+
+```bash
 git clone https://github.com/NavidNikoo/health-sms.git
 cd health-sms
 ```
 
----
+### 2. Database
 
-### 2. Backend Setup
+Create the database and apply the base schema, then run migrations you need (at minimum: team chat + invites if you use those features):
 
+```bash
+createdb health_sms   # or use your host’s equivalent
+psql -U postgres -d health_sms -f backend/schema.sql
+psql -U postgres -d health_sms -f backend/scripts/migrate_dm.sql
+psql -U postgres -d health_sms -f backend/scripts/migrate_invites.sql
+# Optional: seed demo data
+psql -U postgres -d health_sms -f backend/scripts/seed.sql
 ```
+
+See `backend/scripts/` for additional migrations (2FA, sessions, porting, internal notes, etc.).
+
+### 3. Backend
+
+```bash
 cd backend
+cp .env.example .env
+# Edit .env: JWT_SECRET, PostgreSQL, optional Twilio, PHI_ENCRYPTION_KEY, etc.
 npm install
-node server.js
+npm start
 ```
 
-Backend runs at:
+API base: **http://localhost:3000**  
+Health check: **GET** `/api/health`
 
-```
-http://localhost:3000
-```
+### 4. Frontend
 
-Test:
-Open browser and go to `/`
-
----
-
-### 3. Frontend Setup
-
-Open a new terminal:
-
-```
+```bash
 cd frontend
 npm install
 npm run dev
 ```
 
-Frontend runs at:
+App: **http://localhost:5173**
 
-```
-http://localhost:5173
-```
+Set `VITE_API_BASE` (or your project’s API base per `frontend/src/utils/apiBase.js`) if the API is not the default `http://localhost:3000/api`.
+
+---
+
+## Main API Surface (Express)
+
+Mounted under `/api` (see `backend/server.js`):
+
+| Prefix | Purpose |
+|--------|---------|
+| `/api/auth` | Login, signup, refresh, logout, **invite preview & accept** (`GET /auth/invites/:token`, `POST /auth/accept-invite`) |
+| `/api/2fa` | TOTP setup and verification |
+| `/api/patients` | Patient CRUD |
+| `/api/conversations` | SMS threads, messages, internal notes |
+| `/api/phone-numbers` | Clinic numbers, Twilio integration |
+| `/api/webhooks` | Twilio SMS / status webhooks |
+| `/api/users` | Org directory, **admin org invites** |
+| `/api/user-messages` | **Team chat** (profiles, requests, threads, encrypted DMs) |
+| `/api/compliance` | 10DLC / retention / billing flags |
+| `/api/porting`, `/api/voice`, … | As implemented in `routes/` |
+
+---
+
+## Security & Configuration Notes
+
+- Do **not** commit `.env`. Use `backend/.env.example` as a template.
+- `PHI_ENCRYPTION_KEY` (64 hex chars) enables AES-256-GCM for SMS and team message bodies; without it, dev may store plaintext (see `backend/lib/phiCrypto.js`).
+- Production: set `FRONTEND_ORIGIN`, `BASE_URL` for Twilio signatures, and consider `AWS_SSM_PREFIX` for secrets (`backend/lib/loadSecrets.js`).
+- Org invites: create/list/revoke require **admin**; new users can accept via link + `POST /api/auth/accept-invite` or in-app flows.
 
 ---
 
 ## Development Workflow
 
-Before starting work:
-
-```
+```bash
 git pull origin main
-```
-
-Create a feature branch:
-
-```
 git checkout -b feature/your-feature-name
-```
-
-After changes:
-
-```
-git add .
-git commit -m "Description of changes"
+# … changes …
+git add …
+git commit -m "Clear description of changes"
 git push origin feature/your-feature-name
 ```
 
-Then open a Pull Request.
-
----
-
-## Project Roadmap
-
-### Phase 1 – Foundation (Week 1–2)
-
-* Project setup (completed)
-* Cloud VM setup
-* Docker environment
-
-### Phase 2 – Core Security (Week 3–5)
-
-* User authentication
-* Role-based access control
-* PostgreSQL integration
-
-### Phase 3 – Messaging Security (Week 6–7)
-
-* Message storage
-* AES encryption at rest
-* Audit logging
-
-### Phase 4 – Cloud Deployment (Week 8–9)
-
-* Docker deployment to AWS
-* HTTPS configuration
-
-### Phase 5 – Final Features (Week 10–12)
-
-* SMS integration
-* Testing and hardening
-* Documentation and demo preparation
-
----
-
-## Team Expectations
-
-For now:
-
-1. Clone the repo
-2. Verify both frontend and backend run locally
-3. Confirm setup is working
-
-Next tasks will be assigned after cloud environment setup.
-
----
-
-## Architecture (High Level)
-
-Browser
-→ React Frontend
-→ Express Backend (API)
-→ PostgreSQL (encrypted data)
-→ Cloud Virtual Machine (AWS)
-
-All communication will use HTTPS.
-
----
-
-## Notes
-
-* Do NOT commit `.env` files
-* Do NOT commit `node_modules`
-* Environment variables will be provided when needed
+Open a Pull Request when ready.
 
 ---
 
 ## Repository
 
-[https://github.com/NavidNikoo/health-sms](https://github.com/NavidNikoo/health-sms)
+**https://github.com/NavidNikoo/health-sms**
 
 ---
 
-## Immediate Next Step for Team
+## Team
 
-Please clone the repo and confirm your local setup works.
-Reply in the group once your environment is running.
-
----
-
-If you want to run this project like a real lead, the next thing I’d recommend is a short message to your team that positions you as the architect. I can give you that too.
+Clone the repo, run PostgreSQL migrations, configure `backend/.env`, and confirm both servers start. For demo accounts, see `backend/scripts/seed.sql` (demo credentials documented there—change them in any shared environment).

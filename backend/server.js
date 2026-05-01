@@ -78,6 +78,8 @@ async function start() {
   app.use("/api/phone-numbers",            require("./routes/phoneNumbers"));
   app.use("/api/authorized-forward-numbers", require("./routes/authorizedForwardNumbers"));
   app.use("/api/templates",                require("./routes/templates"));
+  app.use("/api/users",                    require("./routes/users"));
+  app.use("/api/user-messages",            require("./routes/userMessages"));
   app.use("/api/webhooks",                 require("./routes/webhooks"));
   app.use("/api/voice",                    require("./routes/voice"));
   app.use("/api/porting",                  require("./routes/porting"));
